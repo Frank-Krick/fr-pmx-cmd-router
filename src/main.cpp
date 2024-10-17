@@ -1,3 +1,5 @@
+#include "pipewire/port.h"
+#include "spa/pod/iter.h"
 #include "spa/pod/pod.h"
 #include <getopt.h>
 #include <math.h>
@@ -17,7 +19,8 @@ struct port {};
 struct data {
   struct pw_main_loop *loop;
   struct pw_filter *filter;
-  struct port *port;
+  struct port *in_port;
+  struct port *out_port;
   uint32_t clock_id;
   int64_t offset;
   uint64_t position;
@@ -25,7 +28,7 @@ struct data {
 
 static void on_process(void *userdata, struct spa_io_position *position) {
   data *data = static_cast<struct data *>(userdata);
-  struct port *port = data->port;
+  struct port *out_port = data->out_port;
   struct pw_buffer *buf;
   struct spa_data *d;
   struct spa_pod_builder builder;
@@ -67,8 +70,30 @@ static void on_process(void *userdata, struct spa_io_position *position) {
   if (sample_offset >= position->clock.duration)
     return; /* don't need to produce anything yet */
 
+  /*
+   * Consume data from input port
+   */
+  struct port *in_port = data->in_port;
+  struct pw_buffer *input_buffer;
+  if ((input_buffer = pw_filter_dequeue_buffer(in_port)) == NULL)
+    return;
+
+  spa_assert(input_buffer->buffer->n_datas == 1);
+
+  struct spa_data *input_data;
+  input_data = &input_buffer->buffer->datas[0];
+  struct spa_pod *input_pod;
+  input_pod = static_cast<spa_pod *>(
+      spa_pod_from_data(input_data->data, input_data->maxsize, 0, 0));
+
+  /*
+   * Need to read SPA BUFFER and then get data from SPA_POD
+   *
+   * https://docs.pipewire.org/page_spa_buffer.html
+   */
+
   /* Get output buffer */
-  if ((buf = pw_filter_dequeue_buffer(port)) == NULL)
+  if ((buf = pw_filter_dequeue_buffer(out_port)) == NULL)
     return;
 
   /* Midi buffers always have exactly one data block */
@@ -126,7 +151,7 @@ static void on_process(void *userdata, struct spa_io_position *position) {
 
   pw_log_trace("produced %u/%u bytes", d->chunk->size, d->maxsize);
 
-  pw_filter_queue_buffer(port, buf);
+  pw_filter_queue_buffer(out_port, buf);
 }
 
 static void state_changed(void *userdata, enum pw_filter_state old,
@@ -159,9 +184,11 @@ static void do_quit(void *userdata, int signal_number) {
 
 int main(int argc, char *argv[]) {
   struct data data = {};
-  uint8_t buffer[1024];
-  struct spa_pod_builder builder;
-  struct spa_pod *params[1];
+  uint8_t out_buffer[1024];
+  uint8_t in_buffer[1024];
+  struct spa_pod_builder out_builder;
+  struct spa_pod_builder in_builder;
+  struct spa_pod *params[2];
 
   pw_init(&argc, &argv);
 
@@ -172,26 +199,25 @@ int main(int argc, char *argv[]) {
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGINT, do_quit, &data);
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGTERM, do_quit, &data);
 
-  /* Create a simple filter, the simple filter manages the core and remote
-   * objects for you if you don't need to deal with them.
-   *
-   * Pass your events and a user_data pointer as the last arguments. This
-   * will inform you about the filter state. The most important event
-   * you need to listen to is the process event where you need to process
-   * the data.
-   */
   data.filter = pw_filter_new_simple(
-      pw_main_loop_get_loop(data.loop), "midi-src",
+      pw_main_loop_get_loop(data.loop), "fr-pmx-cmd-router",
       pw_properties_new(PW_KEY_MEDIA_TYPE, "Midi", PW_KEY_MEDIA_CATEGORY,
-                        "Playback", PW_KEY_MEDIA_CLASS, "Midi/Source", NULL),
+                        "Filter", PW_KEY_MEDIA_CLASS, "Midi/Sink", NULL),
       &filter_events, &data);
 
   /* Make a midi output port */
-  data.port = static_cast<struct port *>(
+  data.out_port = static_cast<struct port *>(
       pw_filter_add_port(data.filter, PW_DIRECTION_OUTPUT,
                          PW_FILTER_PORT_FLAG_MAP_BUFFERS, sizeof(struct port),
                          pw_properties_new(PW_KEY_FORMAT_DSP, "8 bit raw midi",
                                            PW_KEY_PORT_NAME, "output", NULL),
+                         NULL, 0));
+
+  data.in_port = static_cast<struct port *>(
+      pw_filter_add_port(data.filter, PW_DIRECTION_INPUT,
+                         PW_FILTER_PORT_FLAG_MAP_BUFFERS, sizeof(struct port),
+                         pw_properties_new(PW_KEY_FORMAT_DSP, "8 bit raw midi",
+                                           PW_KEY_PORT_NAME, "input", NULL),
                          NULL, 0));
 
   /* Update SPA_PARAM_Buffers to request a specific sizes and counts.
@@ -200,10 +226,11 @@ int main(int argc, char *argv[]) {
    *
    * We'll here ask for 4096 bytes as that's enough.
    */
-  spa_pod_builder_init(&builder, buffer, sizeof(buffer));
+  spa_pod_builder_init(&out_builder, out_buffer, sizeof(out_buffer));
+  spa_pod_builder_init(&in_builder, in_buffer, sizeof(in_buffer));
 
   params[0] = static_cast<spa_pod *>(spa_pod_builder_add_object(
-      &builder,
+      &out_builder,
       /* POD Object for the buffer parameter */
       SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
       /* Default 1 buffer, minimum of 1, max of 32 buffers.
@@ -218,7 +245,23 @@ int main(int argc, char *argv[]) {
       /* MIDI buffers have stride 1 */
       SPA_PARAM_BUFFERS_stride, SPA_POD_Int(1)));
 
-  pw_filter_update_params(data.filter, data.port,
+  params[1] = static_cast<spa_pod *>(spa_pod_builder_add_object(
+      &out_builder,
+      /* POD Object for the buffer parameter */
+      SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
+      /* Default 1 buffer, minimum of 1, max of 32 buffers.
+       * We can do with 1 buffer as we dequeue and queue in the same
+       * cycle.
+       */
+      SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(1, 1, 32),
+      /* MIDI buffers always have 1 data block */
+      SPA_PARAM_BUFFERS_blocks, SPA_POD_Int(1),
+      /* Buffer size: request default 4096 bytes, min 4096, no maximum */
+      SPA_PARAM_BUFFERS_size, SPA_POD_CHOICE_RANGE_Int(4096, 4096, INT32_MAX),
+      /* MIDI buffers have stride 1 */
+      SPA_PARAM_BUFFERS_stride, SPA_POD_Int(1)));
+
+  pw_filter_update_params(data.filter, data.out_port,
                           (const struct spa_pod **)params,
                           SPA_N_ELEMENTS(params));
 
