@@ -133,6 +133,9 @@ static void handle_filter_param_update(void *data, void *port_data, uint32_t id,
     spa_pod_parser_get_struct(&parser, SPA_POD_String(&c_key),
                               SPA_POD_String(&c_value));
 
+    if (c_key == nullptr && c_value == nullptr) {
+      return;
+    }
     struct data *my_data = reinterpret_cast<struct data *>(data);
 
     std::string key(c_key);
@@ -182,20 +185,6 @@ static void do_quit(void *userdata, int signal_number) {
   pw_main_loop_quit(data->loop);
 }
 
-static void handle_registry_event(void *data, uint32_t id, uint32_t permissions,
-                                  const char *type, uint32_t version,
-                                  const struct spa_dict *props) {
-  std::cout << std::endl
-            << "object id: " << id << std::endl
-            << "type: " << type << std::endl
-            << "version: " << version << std::endl;
-}
-
-static const struct pw_registry_events registry_events = {
-    .version = PW_VERSION_REGISTRY_EVENTS,
-    .global = handle_registry_event,
-};
-
 int main(int argc, char *argv[]) {
   struct data data = {};
   uint8_t buffer[1024];
@@ -207,19 +196,6 @@ int main(int argc, char *argv[]) {
 
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGINT, do_quit, &data);
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGTERM, do_quit, &data);
-
-  auto context = pw_context_new(pw_main_loop_get_loop(data.loop),
-                                NULL /* properties */, 0 /* user_data size */);
-  auto core = pw_context_connect(context, NULL /* properties */,
-                                 0 /* user_data size */);
-
-  auto registry =
-      pw_core_get_registry(core, PW_VERSION_REGISTRY, 0 /* user_data size */);
-
-  struct spa_hook registry_listener;
-  spa_zero(registry_listener);
-  //  pw_registry_add_listener(registry, &registry_listener, &registry_events,
-  //                           NULL);
 
   data.filter = pw_filter_new_simple(
       pw_main_loop_get_loop(data.loop), "fr-pmx-cmd-router",
@@ -244,9 +220,6 @@ int main(int argc, char *argv[]) {
   }
 
   pw_main_loop_run(data.loop);
-  pw_proxy_destroy((struct pw_proxy *)registry);
-  pw_core_disconnect(core);
-  pw_context_destroy(context);
   pw_filter_destroy(data.filter);
   pw_main_loop_destroy(data.loop);
   pw_deinit();
