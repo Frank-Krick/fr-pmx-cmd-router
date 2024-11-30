@@ -1,4 +1,7 @@
+#include "pipewire/context.h"
+#include "pipewire/core.h"
 #include "pipewire/keys.h"
+#include "pipewire/main-loop.h"
 #include "pipewire/properties.h"
 #include "pipewire/stream.h"
 #include "spa/buffer/buffer.h"
@@ -180,6 +183,28 @@ static const pw_filter_events filter_events = {
     .process = on_process,
 };
 
+static void registry_event_global(void *data, uint32_t id, uint32_t permissions,
+                                  const char *c_type, uint32_t version,
+                                  const struct spa_dict *props) {
+  struct data *my_data = static_cast<struct data *>(data);
+
+  std::string type(c_type);
+  if (type == "PipeWire:Interface:Node") {
+    std::cout << "Registry event global" << std::endl
+              << "type: " << type << std::endl;
+  }
+}
+
+static void registry_event_global_remove(void *data, uint32_t id) {
+  struct data *my_data = static_cast<struct data *>(data);
+}
+
+static const struct pw_registry_events registry_events = {
+    .version = PW_VERSION_REGISTRY_EVENTS,
+    .global = registry_event_global,
+    .global_remove = registry_event_global_remove,
+};
+
 static void do_quit(void *userdata, int signal_number) {
   data *data = static_cast<struct data *>(userdata);
   pw_main_loop_quit(data->loop);
@@ -196,6 +221,14 @@ int main(int argc, char *argv[]) {
 
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGINT, do_quit, &data);
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGTERM, do_quit, &data);
+
+  auto context = pw_context_new(pw_main_loop_get_loop(data.loop), nullptr, 0);
+  auto core = pw_context_connect(context, nullptr, 0);
+  auto registry = pw_core_get_registry(core, PW_VERSION_REGISTRY, 0);
+  struct spa_hook registry_listener;
+  spa_zero(registry_listener);
+  pw_registry_add_listener(registry, &registry_listener, &registry_events,
+                           nullptr);
 
   data.filter = pw_filter_new_simple(
       pw_main_loop_get_loop(data.loop), "fr-pmx-cmd-router",
@@ -220,6 +253,9 @@ int main(int argc, char *argv[]) {
   }
 
   pw_main_loop_run(data.loop);
+  pw_proxy_destroy((struct pw_proxy *)registry);
+  pw_core_disconnect(core);
+  pw_filter_destroy(data.filter);
   pw_filter_destroy(data.filter);
   pw_main_loop_destroy(data.loop);
   pw_deinit();
