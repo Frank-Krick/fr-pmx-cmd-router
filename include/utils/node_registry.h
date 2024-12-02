@@ -9,12 +9,13 @@ namespace utils {
 struct Node {
   unsigned int id;
   pw_client *client;
+  pw_proxy *proxy;
 };
 
 class NodeRegistry {
 public:
   void add_node(unsigned int id, pw_client *client) {
-    nodes.push_back({id, client});
+    nodes.push_back({id, client, reinterpret_cast<pw_proxy *>(client)});
   }
 
   void delete_node_by_id(unsigned int id) {

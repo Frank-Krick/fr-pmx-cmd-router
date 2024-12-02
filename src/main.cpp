@@ -3,10 +3,14 @@
 #include "pipewire/keys.h"
 #include "pipewire/main-loop.h"
 #include "pipewire/properties.h"
+#include "pipewire/proxy.h"
 #include "pipewire/stream.h"
 #include "spa/buffer/buffer.h"
+#include "spa/param/param.h"
+#include "spa/param/props.h"
 #include "spa/pod/iter.h"
 #include "spa/pod/pod.h"
+#include "spa/pod/vararg.h"
 #include "spa/utils/dict.h"
 #include <algorithm>
 #include <cstdint>
@@ -31,6 +35,7 @@
 
 #include <spa/debug/pod.h>
 
+#include "spa/utils/type.h"
 #include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
 
@@ -51,18 +56,24 @@ struct data {
 };
 
 static void on_process(void *userdata, struct spa_io_position *position) {
+  std::cout << "process ..." << std::endl;
   struct data *my_data = static_cast<struct data *>(userdata);
   struct pw_buffer *pw_buffer;
 
   if ((pw_buffer = pw_filter_dequeue_buffer(my_data->port)) == nullptr) {
     return;
   }
+  std::cout << "dequeued ..." << std::endl;
 
+  /*
   for (unsigned int i = 0; i < pw_buffer->buffer->n_datas; i++) {
+    std::cout << "buffer ... " << i << std::endl;
     auto pod = static_cast<struct spa_pod *>(spa_pod_from_data(
         pw_buffer->buffer->datas[i].data, pw_buffer->buffer->datas[i].maxsize,
         pw_buffer->buffer->datas[i].chunk->offset,
         pw_buffer->buffer->datas[i].chunk->size));
+
+    spa_debug_pod(0, nullptr, pod);
 
     if (!spa_pod_is_sequence(pod)) {
       std::cout << std::endl << "received pod, not sequence" << std::endl;
@@ -72,30 +83,25 @@ static void on_process(void *userdata, struct spa_io_position *position) {
     struct spa_pod_control *pod_control;
     SPA_POD_SEQUENCE_FOREACH(reinterpret_cast<struct spa_pod_sequence *>(pod),
                              pod_control) {
+      std::cout << "sequence for each" << std::endl;
       if (pod_control->type == SPA_CONTROL_Midi) {
+        std::cout << "midi" << std::endl;
         uint8_t *data = nullptr;
         uint32_t length;
         spa_pod_get_bytes(&pod_control->value, (const void **)&data, &length);
+        std::cout << "got bytes" << std::endl;
 
         if (length == 3) {
           if (data[0] < 0b10000000) {
             std::cout << "fist byte is not a status byte" << std::endl;
           } else {
-            uint8_t channel = data[0] & 0b00001111;
             uint8_t message_type = data[0] & 0b11110000;
             std::cout << std::endl
-                      << "received message" << std::endl
-                      << "channel: " << std::hex << (unsigned)channel
-                      << std::endl
-                      << "message type value: " << std::dec
-                      << (unsigned)message_type << std::endl;
+                      << "status: " << data[0] << std::endl
+                      << "control: " << data[1] << std::endl
+                      << "value: " << data[2] << std::endl;
             switch (message_type) {
             case 0b10110000:
-              std::cout << "message type: Control Change" << std::endl
-                        << "control number: " << std::dec << (unsigned)data[1]
-                        << std::endl
-                        << "value: " << std::dec << (unsigned)data[2]
-                        << std::endl;
               auto target_node = my_data->routing_table.find_target_node(
                   {data[0], data[1], data[2]});
               auto target_parameter =
@@ -108,6 +114,27 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                           << "target_parameter: "
                           << target_parameter.value().parameter_name
                           << std::endl;
+                auto midi_value = data[2];
+                auto fractional_value = 1.0 / (double)midi_value;
+                auto value = target_parameter->min +
+                             (target_parameter->max - target_parameter->min) *
+                                 fractional_value;
+
+                u_int8_t buffer[4096];
+                struct spa_pod_builder builder;
+                spa_pod_builder_init(&builder, buffer, sizeof(buffer));
+                auto param_struct =
+                    reinterpret_cast<spa_pod *>(spa_pod_builder_add_struct(
+                        &builder,
+                        SPA_POD_String(
+                            target_parameter->parameter_name.c_str()),
+                        SPA_POD_Float(value)));
+                spa_debug_pod(0, nullptr, param_struct);
+                auto props_object =
+                    reinterpret_cast<spa_pod *>(spa_pod_builder_add_object(
+                        &builder, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
+                        SPA_PROP_params, param_struct));
+                spa_debug_pod(0, nullptr, props_object);
               }
               break;
             }
@@ -115,14 +142,11 @@ static void on_process(void *userdata, struct spa_io_position *position) {
         } else {
           std::cout << "invalid message length" << std::endl;
         }
-      } else {
-        std::cout << std::endl
-                  << "received message" << std::endl
-                  << "type: " << pod_control->type << std::endl;
       }
     }
   }
-
+*/
+  std::cout << std::endl << "queueing buffer" << std::endl;
   pw_filter_queue_buffer(my_data->port, pw_buffer);
 }
 
@@ -204,13 +228,17 @@ static void registry_event_global(void *data, uint32_t id, uint32_t permissions,
 static void registry_event_global_remove(void *data, uint32_t id) {
   struct data *my_data = static_cast<struct data *>(data);
 
-  my_data->node_registry.delete_node_by_id(id);
+  auto node = my_data->node_registry.get_node_by_id(id);
+  if (node) {
+    pw_proxy_destroy(node->proxy);
+    my_data->node_registry.delete_node_by_id(id);
+  }
 }
 
 static const struct pw_registry_events registry_events = {
     .version = PW_VERSION_REGISTRY_EVENTS,
-    .global = registry_event_global,
-    .global_remove = registry_event_global_remove,
+    // .global = registry_event_global,
+    // .global_remove = registry_event_global_remove,
 };
 
 static void do_quit(void *userdata, int signal_number) {
@@ -236,7 +264,7 @@ int main(int argc, char *argv[]) {
   struct spa_hook registry_listener;
   spa_zero(registry_listener);
   pw_registry_add_listener(data.registry, &registry_listener, &registry_events,
-                           nullptr);
+                           &data);
 
   data.filter = pw_filter_new_simple(
       pw_main_loop_get_loop(data.loop), "fr-pmx-cmd-router",
