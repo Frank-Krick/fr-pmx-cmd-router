@@ -65,7 +65,6 @@ static void on_process(void *userdata, struct spa_io_position *position) {
         pw_buffer->buffer->datas[i].chunk->size));
 
     if (!spa_pod_is_sequence(pod)) {
-      std::cout << std::endl << "received pod, not sequence" << std::endl;
       continue;
     }
 
@@ -108,6 +107,11 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                           << "target_parameter: "
                           << target_parameter.value().parameter_name
                           << std::endl;
+              } else {
+                std::cout << "found target node: " << target_node.has_value()
+                          << std::endl
+                          << "found target parameter: "
+                          << target_parameter.has_value() << std::endl;
               }
               break;
             }
@@ -115,10 +119,6 @@ static void on_process(void *userdata, struct spa_io_position *position) {
         } else {
           std::cout << "invalid message length" << std::endl;
         }
-      } else {
-        std::cout << std::endl
-                  << "received message" << std::endl
-                  << "type: " << pod_control->type << std::endl;
       }
     }
   }
@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
   struct spa_hook registry_listener;
   spa_zero(registry_listener);
   pw_registry_add_listener(data.registry, &registry_listener, &registry_events,
-                           nullptr);
+                           &data);
 
   data.filter = pw_filter_new_simple(
       pw_main_loop_get_loop(data.loop), "fr-pmx-cmd-router",
