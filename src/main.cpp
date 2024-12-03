@@ -40,6 +40,15 @@ static void on_process(void *userdata, struct spa_io_position *position) {
     return;
   }
 
+  for (unsigned int i = 0; i < pw_buffer->buffer->n_datas; i++) {
+    auto pod = static_cast<struct spa_pod *>(spa_pod_from_data(
+        pw_buffer->buffer->datas[i].data, pw_buffer->buffer->datas[i].maxsize,
+        pw_buffer->buffer->datas[i].chunk->offset,
+        pw_buffer->buffer->datas[i].chunk->size));
+
+    spa_debug_pod(0, nullptr, pod);
+  }
+
   pw_filter_queue_buffer(my_data->port, pw_buffer);
 
   std::cout << "processed " << std::endl;
