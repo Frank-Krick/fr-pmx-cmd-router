@@ -126,91 +126,9 @@ static void on_process(void *userdata, struct spa_io_position *position) {
   pw_filter_queue_buffer(my_data->port, pw_buffer);
 }
 
-static void handle_filter_param_update(void *data, void *port_data, uint32_t id,
-                                       const struct spa_pod *pod) {
-  struct spa_pod_prop *prop;
-  struct spa_pod_object *obj = (struct spa_pod_object *)pod;
-  SPA_POD_OBJECT_FOREACH(obj, prop) {
-    struct spa_pod_parser parser;
-    spa_pod_parser_pod(&parser, &prop->value);
-
-    char *c_key = nullptr;
-    char *c_value = nullptr;
-    spa_pod_parser_get_struct(&parser, SPA_POD_String(&c_key),
-                              SPA_POD_String(&c_value));
-
-    if (c_key == nullptr && c_value == nullptr) {
-      return;
-    }
-    struct data *my_data = reinterpret_cast<struct data *>(data);
-
-    std::string key(c_key);
-    std::string value(c_value);
-    if (key == "pmx.channel_mapping") {
-      std::string assignment;
-      std::istringstream string_stream(value);
-      int channel;
-      std::vector<std::pair<int, int>> assignments;
-      while (std::getline(string_stream, assignment, ',')) {
-        if (assignment.starts_with("[")) {
-          assignment[0] = ' ';
-          channel = std::stoi(assignment);
-        } else {
-          assignments.push_back(std::make_pair(channel, stoi(assignment)));
-        }
-      }
-
-      for (u_int8_t i = 0; i < 17; i++) {
-        auto assignment = std::find_if(
-            assignments.begin(), assignments.end(),
-            [i](const auto &assignment) { return assignment.first == i; });
-
-        if (assignment == assignments.end()) {
-          my_data->routing_table.clear_target_node_by_channel(i);
-        } else {
-          my_data->routing_table.register_target_node(i, assignment->first);
-        }
-      }
-
-      struct spa_dict_item items[1];
-      items[0] = SPA_DICT_ITEM_INIT("pmx.channel_mapping", value.c_str());
-      struct spa_dict update_dict = SPA_DICT_INIT(items, 1);
-      pw_filter_update_properties(my_data->filter, nullptr, &update_dict);
-    }
-  }
-}
-
 static const pw_filter_events filter_events = {
     .version = PW_VERSION_FILTER_EVENTS,
-    .param_changed = handle_filter_param_update,
     .process = on_process,
-};
-
-static void registry_event_global(void *data, uint32_t id, uint32_t permissions,
-                                  const char *c_type, uint32_t version,
-                                  const struct spa_dict *props) {
-  struct data *my_data = static_cast<struct data *>(data);
-
-  std::string type(c_type);
-  if (type == "PipeWire:Interface:Node") {
-    auto client = static_cast<pw_client *>(
-        pw_registry_bind(my_data->registry, id, c_type, PW_VERSION_CLIENT, 0));
-    my_data->node_registry.add_node(id, client);
-    std::cout << "Registry event global" << std::endl
-              << "type: " << type << std::endl;
-  }
-}
-
-static void registry_event_global_remove(void *data, uint32_t id) {
-  struct data *my_data = static_cast<struct data *>(data);
-
-  my_data->node_registry.delete_node_by_id(id);
-}
-
-static const struct pw_registry_events registry_events = {
-    .version = PW_VERSION_REGISTRY_EVENTS,
-    .global = registry_event_global,
-    .global_remove = registry_event_global_remove,
 };
 
 static void do_quit(void *userdata, int signal_number) {
@@ -220,8 +138,6 @@ static void do_quit(void *userdata, int signal_number) {
 
 int main(int argc, char *argv[]) {
   struct data data = {};
-  uint8_t buffer[1024];
-  struct spa_pod_builder builder;
 
   pw_init(&argc, &argv);
 
@@ -229,14 +145,6 @@ int main(int argc, char *argv[]) {
 
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGINT, do_quit, &data);
   pw_loop_add_signal(pw_main_loop_get_loop(data.loop), SIGTERM, do_quit, &data);
-
-  auto context = pw_context_new(pw_main_loop_get_loop(data.loop), nullptr, 0);
-  auto core = pw_context_connect(context, nullptr, 0);
-  data.registry = pw_core_get_registry(core, PW_VERSION_REGISTRY, 0);
-  struct spa_hook registry_listener;
-  spa_zero(registry_listener);
-  pw_registry_add_listener(data.registry, &registry_listener, &registry_events,
-                           nullptr);
 
   data.filter = pw_filter_new_simple(
       pw_main_loop_get_loop(data.loop), "fr-pmx-cmd-router",
@@ -253,17 +161,12 @@ int main(int argc, char *argv[]) {
                                            PW_KEY_PORT_NAME, "input", NULL),
                          NULL, 0));
 
-  spa_pod_builder_init(&builder, buffer, sizeof(buffer));
-
   if (pw_filter_connect(data.filter, PW_FILTER_FLAG_RT_PROCESS, NULL, 0) < 0) {
     fprintf(stderr, "can't connect\n");
     return -1;
   }
 
   pw_main_loop_run(data.loop);
-  pw_proxy_destroy((struct pw_proxy *)data.registry);
-  pw_core_disconnect(core);
-  pw_filter_destroy(data.filter);
   pw_filter_destroy(data.filter);
   pw_main_loop_destroy(data.loop);
   pw_deinit();
