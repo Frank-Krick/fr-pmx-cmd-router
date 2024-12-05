@@ -1,6 +1,7 @@
 #include "pipewire/context.h"
 #include "pipewire/core.h"
 #include "pipewire/keys.h"
+#include "pipewire/loop.h"
 #include "pipewire/main-loop.h"
 #include "pipewire/node.h"
 #include "pipewire/properties.h"
@@ -8,8 +9,10 @@
 #include "spa/buffer/buffer.h"
 #include "spa/pod/iter.h"
 #include "spa/pod/pod.h"
+#include "spa/support/loop.h"
 #include "spa/utils/dict.h"
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <getopt.h>
 #include <iostream>
@@ -51,6 +54,13 @@ struct data {
   uint64_t position;
   utils::MidiRoutingTable routing_table;
   utils::NodeRegistry node_registry;
+};
+
+struct pw_invoke_set_param_data {
+  utils::RoutingTableTargetParameter target_parameter;
+  unsigned int target_node_id;
+  pw_client *target_node;
+  u_int8_t value;
 };
 
 static void on_process(void *userdata, struct spa_io_position *position) {
@@ -111,25 +121,48 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                           << target_parameter.value().parameter_name
                           << std::endl;
 
-                double normalized_value = (double)data[2] / 127.0;
-                double result =
-                    target_parameter->min +
-                    (target_parameter->max - target_parameter->min) *
-                        normalized_value;
-
-                u_int8_t buffer[1024];
-                auto pod = utils::PodMessageBuilder::build_set_params_message(
-                    buffer, sizeof(buffer), target_parameter->parameter_name,
-                    std::to_string(result));
-
-                spa_debug_pod(0, nullptr, pod);
-
                 auto target_node =
                     my_data->node_registry.get_node_by_id(target_node_id->id);
+
                 if (target_node) {
-                  pw_node_set_param(
-                      reinterpret_cast<struct pw_node *>(target_node->client),
-                      SPA_TYPE_OBJECT_Props, 0, pod);
+                  pw_invoke_set_param_data invoke_data{
+                      {target_parameter->parameter_name, target_parameter->min,
+                       target_parameter->max},
+                      target_node_id.value().id,
+                      target_node->client,
+                      data[2]};
+                  pw_loop_invoke(
+                      pw_main_loop_get_loop(my_data->loop),
+                      [](struct spa_loop *loop, bool async, u_int32_t seq,
+                         const void *data, size_t size, void *user_data) {
+                        const pw_invoke_set_param_data *param_data =
+                            static_cast<const pw_invoke_set_param_data *>(data);
+                        double normalized_value =
+                            (double)param_data->value / 127.0;
+                        double result = param_data->target_parameter.min +
+                                        (param_data->target_parameter.max -
+                                         param_data->target_parameter.min) *
+                                            normalized_value;
+
+                        u_int8_t buffer[1024];
+                        auto pod =
+                            utils::PodMessageBuilder::build_set_params_message(
+                                buffer, sizeof(buffer),
+                                param_data->target_parameter.parameter_name,
+                                std::to_string(result));
+
+                        spa_debug_pod(0, nullptr, pod);
+
+                        pw_node_set_param(reinterpret_cast<struct pw_node *>(
+                                              param_data->target_node),
+                                          SPA_TYPE_OBJECT_Props, 0, pod);
+
+                        return 0;
+                      },
+                      0, &invoke_data, sizeof(pw_invoke_set_param_data), false,
+                      my_data);
+                  /*
+                   */
                   std::cout << std::endl
                             << "set target node parameter." << std::endl;
                 } else {
