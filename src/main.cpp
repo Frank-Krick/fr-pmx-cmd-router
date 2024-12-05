@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <sstream>
 #include <stdio.h>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,7 @@
 
 #include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
+#include "utils/pod_message_builder.h"
 
 #define PERIOD_NSEC (SPA_NSEC_PER_SEC / 8)
 
@@ -107,6 +109,13 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                           << "target_parameter: "
                           << target_parameter.value().parameter_name
                           << std::endl;
+
+                u_int8_t buffer[1024];
+                auto pod = utils::PodMessageBuilder::build_set_params_message(
+                    buffer, sizeof(buffer), target_parameter->parameter_name,
+                    std::to_string(data[2]));
+
+                spa_debug_pod(0, nullptr, pod);
               } else {
                 std::cout << "found target node: " << target_node.has_value()
                           << std::endl
@@ -252,8 +261,6 @@ int main(int argc, char *argv[]) {
                          pw_properties_new(PW_KEY_FORMAT_DSP, "8 bit raw midi",
                                            PW_KEY_PORT_NAME, "input", NULL),
                          NULL, 0));
-
-  spa_pod_builder_init(&builder, buffer, sizeof(buffer));
 
   if (pw_filter_connect(data.filter, PW_FILTER_FLAG_RT_PROCESS, NULL, 0) < 0) {
     fprintf(stderr, "can't connect\n");
