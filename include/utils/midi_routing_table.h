@@ -9,6 +9,8 @@ namespace utils {
 
 struct RoutingTableTargetParameter {
   std::string parameter_name;
+  double min;
+  double max;
 };
 
 struct RoutingTableTargetNode {
@@ -58,24 +60,24 @@ private:
   inline static std::array<std::optional<RoutingTableTargetParameter>, 19>
       control_number_mapping{
           std::nullopt,
-          RoutingTableTargetParameter{"Saturator:level_in"},
-          RoutingTableTargetParameter{"Saturator:drive"},
-          RoutingTableTargetParameter{"Saturator:blend"},
-          RoutingTableTargetParameter{"Saturator:level_out"},
-          RoutingTableTargetParameter{"Compressor:threshold"},
-          RoutingTableTargetParameter{"Compressor:ratio"},
-          RoutingTableTargetParameter{"Compressor:attack"},
-          RoutingTableTargetParameter{"Compressor:release"},
-          RoutingTableTargetParameter{"Compressor:makeup"},
-          RoutingTableTargetParameter{"Compressor:knee"},
-          RoutingTableTargetParameter{"Compressor:mix"},
+          RoutingTableTargetParameter{"Saturator:level_in", 0.015625, 64.0},
+          RoutingTableTargetParameter{"Saturator:drive", 0.1, 10.0},
+          RoutingTableTargetParameter{"Saturator:blend", -10, 10},
+          RoutingTableTargetParameter{"Saturator:level_out", 0.015625, 64.0},
+          RoutingTableTargetParameter{"Compressor:threshold", 0.000977, 1.0},
+          RoutingTableTargetParameter{"Compressor:ratio", 1.0, 20.0},
+          RoutingTableTargetParameter{"Compressor:attack", 0.01, 2000.0},
+          RoutingTableTargetParameter{"Compressor:release", 0.01, 2000.0},
+          RoutingTableTargetParameter{"Compressor:makeup", 1.0, 64.0},
+          RoutingTableTargetParameter{"Compressor:knee", 1.0, 8.0},
+          RoutingTableTargetParameter{"Compressor:mix", 0.0, 1.0},
           std::nullopt,
-          RoutingTableTargetParameter{"Equalizer:low"},
-          RoutingTableTargetParameter{"Equalizer:mid"},
-          RoutingTableTargetParameter{"Equalizer:high"},
-          RoutingTableTargetParameter{"Equalizer:master"},
-          RoutingTableTargetParameter{"Equalizer:low_mid"},
-          RoutingTableTargetParameter{"Equalizer:mid_high"},
+          RoutingTableTargetParameter{"Equalizer:low", -24, 24},
+          RoutingTableTargetParameter{"Equalizer:mid", -24, 24},
+          RoutingTableTargetParameter{"Equalizer:high", -24, 24},
+          RoutingTableTargetParameter{"Equalizer:master", -24, 24},
+          RoutingTableTargetParameter{"Equalizer:low_mid", 0.0, 1000.0},
+          RoutingTableTargetParameter{"Equalizer:mid_high", 1000.0, 20000.0},
       };
 };
 

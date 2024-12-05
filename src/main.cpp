@@ -2,6 +2,7 @@
 #include "pipewire/core.h"
 #include "pipewire/keys.h"
 #include "pipewire/main-loop.h"
+#include "pipewire/node.h"
 #include "pipewire/properties.h"
 #include "pipewire/stream.h"
 #include "spa/buffer/buffer.h"
@@ -97,27 +98,47 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                         << std::endl
                         << "value: " << std::dec << (unsigned)data[2]
                         << std::endl;
-              auto target_node = my_data->routing_table.find_target_node(
+              auto target_node_id = my_data->routing_table.find_target_node(
                   {data[0], data[1], data[2]});
               auto target_parameter =
                   my_data->routing_table.find_target_parameter(
                       {data[0], data[1], data[2]});
-              if (target_node && target_parameter) {
+              if (target_node_id && target_parameter) {
                 std::cout << std::endl
-                          << "target_node: " << target_node.value().id
+                          << "target_node: " << target_node_id.value().id
                           << std::endl
                           << "target_parameter: "
                           << target_parameter.value().parameter_name
                           << std::endl;
 
+                double normalized_value = (double)data[2] / 127.0;
+                double result =
+                    target_parameter->min +
+                    (target_parameter->max - target_parameter->min) *
+                        normalized_value;
+
                 u_int8_t buffer[1024];
                 auto pod = utils::PodMessageBuilder::build_set_params_message(
                     buffer, sizeof(buffer), target_parameter->parameter_name,
-                    std::to_string(data[2]));
+                    std::to_string(result));
 
                 spa_debug_pod(0, nullptr, pod);
+
+                auto target_node =
+                    my_data->node_registry.get_node_by_id(target_node_id->id);
+                if (target_node) {
+                  pw_node_set_param(
+                      reinterpret_cast<struct pw_node *>(target_node->client),
+                      SPA_TYPE_OBJECT_Props, 0, pod);
+                  std::cout << std::endl
+                            << "set target node parameter." << std::endl;
+                } else {
+                  std::cout << std::endl
+                            << "couldn't find target pipewire node in registry."
+                            << std::endl;
+                }
               } else {
-                std::cout << "found target node: " << target_node.has_value()
+                std::cout << "found target node: " << target_node_id.has_value()
                           << std::endl
                           << "found target parameter: "
                           << target_parameter.has_value() << std::endl;
@@ -177,7 +198,7 @@ static void handle_filter_param_update(void *data, void *port_data, uint32_t id,
         if (assignment == assignments.end()) {
           my_data->routing_table.clear_target_node_by_channel(i);
         } else {
-          my_data->routing_table.register_target_node(i, assignment->first);
+          my_data->routing_table.register_target_node(i, assignment->second);
         }
       }
 
@@ -229,8 +250,6 @@ static void do_quit(void *userdata, int signal_number) {
 
 int main(int argc, char *argv[]) {
   struct data data = {};
-  uint8_t buffer[1024];
-  struct spa_pod_builder builder;
 
   pw_init(&argc, &argv);
 
