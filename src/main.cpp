@@ -7,6 +7,7 @@
 #include "pipewire/properties.h"
 #include "pipewire/stream.h"
 #include "spa/buffer/buffer.h"
+#include "spa/param/param.h"
 #include "spa/pod/iter.h"
 #include "spa/pod/pod.h"
 #include "spa/support/loop.h"
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <getopt.h>
 #include <iostream>
 #include <math.h>
@@ -57,10 +59,10 @@ struct data {
 };
 
 struct pw_invoke_set_param_data {
-  utils::RoutingTableTargetParameter target_parameter;
   unsigned int target_node_id;
   pw_client *target_node;
-  u_int8_t value;
+  double value;
+  char parameter_name[2048];
 };
 
 static void on_process(void *userdata, struct spa_io_position *position) {
@@ -125,46 +127,42 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                     my_data->node_registry.get_node_by_id(target_node_id->id);
 
                 if (target_node) {
+                  double normalized_value = (double)data[2] / 127.0;
+                  double result =
+                      target_parameter->min +
+                      (target_parameter->max - target_parameter->min) *
+                          normalized_value;
                   pw_invoke_set_param_data invoke_data{
-                      {target_parameter->parameter_name, target_parameter->min,
-                       target_parameter->max},
-                      target_node_id.value().id,
-                      target_node->client,
-                      data[2]};
+                      target_node_id.value().id, target_node->client, result};
+                  strncpy(invoke_data.parameter_name,
+                          target_parameter->parameter_name.c_str(),
+                          sizeof(invoke_data.parameter_name));
                   pw_loop_invoke(
                       pw_main_loop_get_loop(my_data->loop),
                       [](struct spa_loop *loop, bool async, u_int32_t seq,
                          const void *data, size_t size, void *user_data) {
                         const pw_invoke_set_param_data *param_data =
                             static_cast<const pw_invoke_set_param_data *>(data);
-                        double normalized_value =
-                            (double)param_data->value / 127.0;
-                        double result = param_data->target_parameter.min +
-                                        (param_data->target_parameter.max -
-                                         param_data->target_parameter.min) *
-                                            normalized_value;
 
                         u_int8_t buffer[1024];
                         auto pod =
                             utils::PodMessageBuilder::build_set_params_message(
                                 buffer, sizeof(buffer),
-                                param_data->target_parameter.parameter_name,
-                                std::to_string(result));
+                                param_data->parameter_name,
+                                std::to_string(param_data->value));
 
                         spa_debug_pod(0, nullptr, pod);
 
                         pw_node_set_param(reinterpret_cast<struct pw_node *>(
                                               param_data->target_node),
-                                          SPA_TYPE_OBJECT_Props, 0, pod);
+                                          SPA_PARAM_Props, 0, pod);
+                        std::cout << std::endl
+                                  << "set target node parameter." << std::endl;
 
                         return 0;
                       },
                       0, &invoke_data, sizeof(pw_invoke_set_param_data), false,
                       my_data);
-                  /*
-                   */
-                  std::cout << std::endl
-                            << "set target node parameter." << std::endl;
                 } else {
                   std::cout << std::endl
                             << "couldn't find target pipewire node in registry."
