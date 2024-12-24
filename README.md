@@ -6,9 +6,10 @@ Currently based on the factory settings for the Faderfox PC4. The Performance
 Mixer currently supports 16 channels, each mapped to a midi channel of the
 controller. The parameter mapping is as follows:
 
-CC|1|2|3|4
-Device|SAT|SAT|SAT|SAT
-Parameter|level in|drive|blend|level_out
+|---|---|---|---|---|
+|CC|1|2|3|4|
+|Device|SAT|SAT|SAT|SAT|
+|Parameter|level in|drive|blend|level_out|
 
 ## Group Channels
 
