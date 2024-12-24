@@ -44,7 +44,67 @@ controller. The parameter mapping is as follows:
 
 ## Group Channels
 
+The supported 4 Group Channels are currently mapped to a  Behringer CMD-1 DJ
+Controller. The controller uses midi channel 5.
+
+|Pot Row 0|Out 1|Out 2|Cue Vol|Cue Mix|
+|---|---|---|---|---|
+|CC|1|2|4|5|
+|Device|EQ|EQ|EQ|EQ|
+|Group Channel|1|2|3|4|
+|Parameter|send_1|send_1|send_1|send_1|
+
+|Pot Row 1|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|6|7|8|9|
+|Device|EQ|EQ|EQ|EQ|
+|Group Channel|1|2|3|4|
+|Parameter|send_2|send_2|send_2|send_2|
+
+|Pot Row 2|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|10|11|12|13|
+|Device|EQ|EQ|EQ|EQ|
+|Group Channel|1|2|3|4|
+|Parameter|high|high|high|high|
+
+|Pot Row 3|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|14|15|16|17|
+|Device|EQ|EQ|EQ|EQ|
+|Group Channel|1|2|3|4|
+|Parameter|mid|mid|mid|mid|
+
+|Pot Row 4|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|18|19|20|21|
+|Device|EQ|EQ|EQ|EQ|
+|Group Channel|1|2|3|4|
+|Parameter|low|low|low|low|
+
+|Fader|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|48|49|50|51|
+|Device|EQ|EQ|EQ|EQ|
+|Group Channel|1|2|3|4|
+|Parameter|master|master|master|master|
+
+## Selecting Layer A / B
+
+Which Layer is currently active is controlled by the cross fader on the
+Behringer CMD-1.
+
+Control: Crossfader on CMD-1
+Channel: 5
+CC: 64
+Logic:
+
+- < 64, edit layer A
+- >= 64, edit layer B
+
 ## Layer DJ Mixer
+
+Mixing the layers in controlled by a Native Instruments DJ Controller.
 
 ## Notes
 
