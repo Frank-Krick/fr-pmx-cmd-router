@@ -1,5 +1,21 @@
 # Performance Mixer Control Router
 
+## Input Channels
+
+Currently based on the factory settings for the Faderfox PC4. The Performance
+Mixer currently supports 16 channels, each mapped to a midi channel of the
+controller. The parameter mapping is as follows:
+
+CC|1|2|3|4
+Device|SAT|SAT|SAT|SAT
+Parameter|level in|drive|blend|level_out
+
+## Group Channels
+
+## Layer DJ Mixer
+
+## Notes
+
 - Set channel mapping with:
   `pw-cli s <node_id> Props '{params = [pmx.channel_mapping "<mappings>"]}'`
 - Mappings is a list of arrays, the first entry is the midi channel, the second
