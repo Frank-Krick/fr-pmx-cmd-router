@@ -148,8 +148,7 @@ static void on_process(void *userdata, struct spa_io_position *position) {
                         auto pod =
                             utils::PodMessageBuilder::build_set_params_message(
                                 buffer, sizeof(buffer),
-                                param_data->parameter_name,
-                                std::to_string(param_data->value));
+                                param_data->parameter_name, param_data->value);
 
                         spa_debug_pod(0, nullptr, pod);
 

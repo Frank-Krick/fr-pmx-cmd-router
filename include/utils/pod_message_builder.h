@@ -18,7 +18,7 @@ class PodMessageBuilder {
 public:
   static spa_pod *build_set_params_message(u_int8_t *buffer, size_t buffer_size,
                                            std::string param_name,
-                                           std::string param_value) {
+                                           float param_value) {
 
     struct spa_pod_builder builder;
     spa_pod_builder_init(&builder, buffer, buffer_size);
@@ -31,7 +31,7 @@ public:
     struct spa_pod_frame struct_frame;
     spa_pod_builder_push_struct(&builder, &struct_frame);
     spa_pod_builder_string(&builder, param_name.c_str());
-    spa_pod_builder_string(&builder, param_value.c_str());
+    spa_pod_builder_float(&builder, param_value);
     spa_pod_builder_pop(&builder, &struct_frame);
 
     return static_cast<spa_pod *>(spa_pod_builder_pop(&builder, &object_frame));
