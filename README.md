@@ -12,6 +12,36 @@ controller. The parameter mapping is as follows:
 |Device|SAT|SAT|SAT|SAT|
 |Parameter|level in|drive|blend|level_out|
 
+|Row 2|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|5|6|7|8|
+|Device|COMP|COMP|COMP|COMP|
+|Parameter|threshold|ratio|attack|release|
+
+|Row 3|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|9|10|11|12|
+|Device|COMP|COMP|COMP||
+|Parameter|makeup|knee|mix||
+
+|Row 4|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|13|14|15|16|
+|Device|EQ|EQ|EQ|EQ|
+|Parameter|low|mid|high|master|
+
+|Row 5|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|17|18|19|20|
+|Device|EQ|EQ|||
+|Parameter|low_mid|mid_high| | |
+
+|Row 6|Column 1|Column 2|Column 3|Column 4|
+|---|---|---|---|---|
+|CC|21|22|23|24|
+|Device|||||
+|Parameter|||||
+
 ## Group Channels
 
 ## Layer DJ Mixer
