@@ -104,7 +104,7 @@ Logic:
 
 ## Layer DJ Mixer
 
-Mixing the layers in controlled by a Native Instruments DJ Controller.
+Mixing the layers is controlled by a Native Instruments DJ Controller.
 
 ## Notes
 
