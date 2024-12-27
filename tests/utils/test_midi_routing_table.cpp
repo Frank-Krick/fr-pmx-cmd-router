@@ -6,7 +6,7 @@
 using namespace utils;
 
 TEST(FindTargetParameterShouldMapMidiControlValues) {
-  auto table = MidiRoutingTable();
+  auto table = InputChannelsMidiRoutingTable();
 
   auto target = table.find_target_parameter({0b10110001, 1, 32});
   ASSERT_TRUE(target);
@@ -78,7 +78,7 @@ TEST(FindTargetParameterShouldMapMidiControlValues) {
 }
 
 TEST(FindTargetParameterShouldRejectUnmappedControlNumbers) {
-  auto table = MidiRoutingTable();
+  auto table = InputChannelsMidiRoutingTable();
 
   ASSERT_FALSE(table.find_target_parameter({0b10111000, 12, 0}));
 
@@ -88,7 +88,7 @@ TEST(FindTargetParameterShouldRejectUnmappedControlNumbers) {
 }
 
 TEST(FindTargetParameterShouldRejectUnsupportedMessageTypes) {
-  auto table = MidiRoutingTable();
+  auto table = InputChannelsMidiRoutingTable();
 
   // First byte not a control byte, invalid midi message
   ASSERT_FALSE(table.find_target_parameter({0b00000000, 0, 0}));
@@ -106,7 +106,7 @@ TEST(FindTargetParameterShouldRejectUnsupportedMessageTypes) {
 }
 
 TEST(FindTargetNodeShouldNotHaveAnyNodesAfterConstruction) {
-  auto table = MidiRoutingTable();
+  auto table = InputChannelsMidiRoutingTable();
   for (u_int8_t i = 1; i < 17; i++) {
     u_int8_t control_byte = i | 0b10110000;
     ASSERT_FALSE(table.find_target_node({control_byte, 0, 0}));
@@ -114,7 +114,7 @@ TEST(FindTargetNodeShouldNotHaveAnyNodesAfterConstruction) {
 }
 
 TEST(FindTargetNodeShouldReturnTheNodeForTheChannelIfRegistered) {
-  auto table = MidiRoutingTable();
+  auto table = InputChannelsMidiRoutingTable();
 
   table.register_target_node(4, 466);
 
@@ -125,7 +125,7 @@ TEST(FindTargetNodeShouldReturnTheNodeForTheChannelIfRegistered) {
 
 TEST(
     FindTargetNodeShouldReturnAnEmptyOptionIfTheNodeWasRegisteredAndThenCleared) {
-  auto table = MidiRoutingTable();
+  auto table = InputChannelsMidiRoutingTable();
 
   table.register_target_node(4, 466);
   table.register_target_node(7, 466);

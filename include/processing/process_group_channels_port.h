@@ -1,8 +1,8 @@
 #pragma once
 
 #include "pipewire/node.h"
+#include "processing/group_channels_midi_processor.h"
 #include "processing/port.h"
-#include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
 #include "utils/pod_message_builder.h"
 
@@ -16,10 +16,11 @@
 #include <spa/debug/pod.h>
 #include <spa/pod/iter.h>
 #include <spa/pod/pod.h>
+#include <sys/types.h>
 
 namespace processing {
 
-class ProcessInputChannelsPort {
+class ProcessGroupChannelsPort {
 private:
   struct pw_invoke_set_param_data {
     unsigned int target_node_id;
@@ -29,10 +30,11 @@ private:
   };
 
 public:
-  static void on_process(processing::port *port,
-                         utils::InputChannelsMidiRoutingTable &routing_table,
-                         utils::NodeRegistry &node_registry,
-                         struct pw_main_loop *loop) {
+  static void
+  on_process(processing::port *port,
+             processing::GroupChannelsMidiRoutingTable &routing_table,
+             utils::NodeRegistry &node_registry, struct pw_main_loop *loop,
+             const std::array<unsigned int, 4> group_to_node_id_mapping) {
 
     struct pw_buffer *pw_buffer;
     if ((pw_buffer = pw_filter_dequeue_buffer(port)) == nullptr) {
@@ -59,16 +61,9 @@ public:
 
           if (length == 3) {
             if (data[0] < 0b10000000) {
-              std::cout << "fist byte is not a status byte" << std::endl;
+              std::cout << "first byte is not a status byte" << std::endl;
             } else {
-              uint8_t channel = data[0] & 0b00001111;
               uint8_t message_type = data[0] & 0b11110000;
-              std::cout << std::endl
-                        << "received message" << std::endl
-                        << "channel: " << std::hex << (unsigned)channel
-                        << std::endl
-                        << "message type value: " << std::dec
-                        << (unsigned)message_type << std::endl;
               switch (message_type) {
               case 0b10110000:
                 std::cout << "message type: Control Change" << std::endl
@@ -76,31 +71,27 @@ public:
                           << std::endl
                           << "value: " << std::dec << (unsigned)data[2]
                           << std::endl;
-                auto target_node_id =
-                    routing_table.find_target_node({data[0], data[1], data[2]});
-                auto target_parameter = routing_table.find_target_parameter(
-                    {data[0], data[1], data[2]});
-                if (target_node_id && target_parameter) {
-                  std::cout << std::endl
-                            << "target_node: " << target_node_id.value().id
-                            << std::endl
-                            << "target_parameter: "
-                            << target_parameter.value().parameter_name
-                            << std::endl;
 
-                  auto target_node =
-                      node_registry.get_node_by_id(target_node_id->id);
+                auto target = routing_table.get_target_by_cc_number(data[1]);
+                auto target_id =
+                    group_to_node_id_mapping[target.value().group_id - 1];
+                if (target) {
+                  std::cout
+                      << std::endl
+                      << "group id: " << target.value().group_id << std::endl
+                      << "target parameter: " << target.value().parameter_name
+                      << std::endl;
+
+                  auto target_node = node_registry.get_node_by_id(target_id);
 
                   if (target_node) {
                     double normalized_value = (double)data[2] / 127.0;
-                    double result =
-                        target_parameter->min +
-                        (target_parameter->max - target_parameter->min) *
-                            normalized_value;
+                    double result = target->min + (target->max - target->min) *
+                                                      normalized_value;
                     pw_invoke_set_param_data invoke_data{
-                        target_node_id.value().id, target_node->client, result};
+                        target_id, target_node->client, result};
                     strncpy(invoke_data.parameter_name,
-                            target_parameter->parameter_name.c_str(),
+                            target->parameter_name.c_str(),
                             sizeof(invoke_data.parameter_name));
                     pw_loop_invoke(
                         pw_main_loop_get_loop(loop),
@@ -122,9 +113,6 @@ public:
                           pw_node_set_param(reinterpret_cast<struct pw_node *>(
                                                 param_data->target_node),
                                             SPA_PARAM_Props, 0, pod);
-                          std::cout << std::endl
-                                    << "set target node parameter."
-                                    << std::endl;
 
                           return 0;
                         },
@@ -137,11 +125,9 @@ public:
                         << std::endl;
                   }
                 } else {
-                  std::cout
-                      << "found target node: " << target_node_id.has_value()
-                      << std::endl
-                      << "found target parameter: "
-                      << target_parameter.has_value() << std::endl;
+                  std::cout << "found target node: " << target_id << std::endl
+                            << "found target parameter: " << target.has_value()
+                            << std::endl;
                 }
                 break;
               }

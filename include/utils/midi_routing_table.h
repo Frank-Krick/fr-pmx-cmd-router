@@ -17,12 +17,13 @@ struct RoutingTableTargetNode {
   unsigned int id;
 };
 
-class MidiRoutingTable {
+class InputChannelsMidiRoutingTable {
 public:
   std::optional<RoutingTableTargetParameter>
   find_target_parameter(std::array<u_int8_t, 3> midi_message) {
     if ((midi_message[0] & 0b11110000) == 0b10110000) {
-      if (midi_message[1] < MidiRoutingTable::control_number_mapping.size()) {
+      if (midi_message[1] <
+          InputChannelsMidiRoutingTable::control_number_mapping.size()) {
         return control_number_mapping[midi_message[1]];
       }
     }

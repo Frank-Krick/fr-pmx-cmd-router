@@ -32,10 +32,12 @@
 
 #include <sys/types.h>
 
+#include "processing/group_channels_midi_processor.h"
 #include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
 
 #include "processing/port.h"
+#include "processing/process_group_channels_port.h"
 #include "processing/process_input_channels_port.h"
 
 #define PERIOD_NSEC (SPA_NSEC_PER_SEC / 8)
@@ -49,23 +51,22 @@ struct data {
   uint32_t clock_id;
   int64_t offset;
   uint64_t position;
-  utils::MidiRoutingTable routing_table;
+  utils::InputChannelsMidiRoutingTable routing_table;
+  processing::GroupChannelsMidiRoutingTable group_channels_routing_table;
   utils::NodeRegistry node_registry;
+  std::array<unsigned int, 4> group_to_node_id_mapping;
 };
 
-struct pw_invoke_set_param_data {
-  unsigned int target_node_id;
-  pw_client *target_node;
-  double value;
-  char parameter_name[2048];
-};
-
-static void on_process(void *userdata, struct spa_io_position *position) {
-  struct data *my_data = static_cast<struct data *>(userdata);
+static void on_process(void *user_data, struct spa_io_position *position) {
+  struct data *my_data = static_cast<struct data *>(user_data);
 
   processing::ProcessInputChannelsPort::on_process(
       my_data->input_channels_port, my_data->routing_table,
       my_data->node_registry, my_data->loop);
+
+  processing::ProcessGroupChannelsPort::on_process(
+      my_data->group_channels_port, my_data->group_channels_routing_table,
+      my_data->node_registry, my_data->loop, my_data->group_to_node_id_mapping);
 }
 
 static void handle_filter_param_update(void *data, void *port_data, uint32_t id,
@@ -118,6 +119,25 @@ static void handle_filter_param_update(void *data, void *port_data, uint32_t id,
       items[0] = SPA_DICT_ITEM_INIT("pmx.channel_mapping", value.c_str());
       struct spa_dict update_dict = SPA_DICT_INIT(items, 1);
       pw_filter_update_properties(my_data->filter, nullptr, &update_dict);
+    } else if (key == "pmx.group_channel_node_ids") {
+      std::string assignment;
+      std::istringstream string_stream(value);
+      std::vector<unsigned int> node_ids;
+      while (std::getline(string_stream, assignment, ',')) {
+        node_ids.push_back(std::stoi(assignment));
+      }
+
+      if (node_ids.size() == 4) {
+
+        my_data->group_to_node_id_mapping = {node_ids[0], node_ids[1],
+                                             node_ids[2], node_ids[3]};
+
+        struct spa_dict_item items[1];
+        items[0] =
+            SPA_DICT_ITEM_INIT("pmx.group_channel_node_ids", value.c_str());
+        struct spa_dict update_dict = SPA_DICT_INIT(items, 1);
+        pw_filter_update_properties(my_data->filter, nullptr, &update_dict);
+      }
     }
   }
 }

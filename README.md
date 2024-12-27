@@ -45,7 +45,7 @@ controller. The parameter mapping is as follows:
 ## Group Channels
 
 The supported 4 Group Channels are currently mapped to a  Behringer CMD-1 DJ
-Controller. The controller uses midi channel 5.
+Controller. The controller uses midi channel 5, but the channel is ignored.
 
 |Pot Row 0|Out 1|Out 2|Cue Vol|Cue Mix|
 |---|---|---|---|---|
@@ -95,7 +95,7 @@ Which Layer is currently active is controlled by the cross fader on the
 Behringer CMD-1.
 
 Control: Crossfader on CMD-1
-Channel: 5
+Channel: *Ignored*
 CC: 64
 Logic:
 
