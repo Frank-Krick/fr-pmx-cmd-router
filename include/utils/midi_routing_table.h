@@ -1,17 +1,11 @@
 #pragma once
 
+#include "processing/parameters.h"
 #include <array>
 #include <optional>
-#include <string>
 #include <sys/types.h>
 
 namespace utils {
-
-struct RoutingTableTargetParameter {
-  std::string parameter_name;
-  double min;
-  double max;
-};
 
 struct RoutingTableTargetNode {
   unsigned int id;
@@ -19,7 +13,7 @@ struct RoutingTableTargetNode {
 
 class InputChannelsMidiRoutingTable {
 public:
-  std::optional<RoutingTableTargetParameter>
+  std::optional<struct processing::parameter>
   find_target_parameter(std::array<u_int8_t, 3> midi_message) {
     if ((midi_message[0] & 0b11110000) == 0b10110000) {
       if (midi_message[1] <
@@ -58,27 +52,27 @@ private:
   inline static std::array<std::optional<RoutingTableTargetNode>, 17>
       channel_node_mapping{};
 
-  inline static std::array<std::optional<RoutingTableTargetParameter>, 19>
+  inline static std::array<std::optional<processing::parameter>, 19>
       control_number_mapping{
           std::nullopt,
-          RoutingTableTargetParameter{"Saturator:level_in", 0.015625, 64.0},
-          RoutingTableTargetParameter{"Saturator:drive", 0.1, 10.0},
-          RoutingTableTargetParameter{"Saturator:blend", -10, 10},
-          RoutingTableTargetParameter{"Saturator:level_out", 0.015625, 64.0},
-          RoutingTableTargetParameter{"Compressor:threshold", 0.000977, 1.0},
-          RoutingTableTargetParameter{"Compressor:ratio", 1.0, 20.0},
-          RoutingTableTargetParameter{"Compressor:attack", 0.01, 2000.0},
-          RoutingTableTargetParameter{"Compressor:release", 0.01, 2000.0},
-          RoutingTableTargetParameter{"Compressor:makeup", 1.0, 64.0},
-          RoutingTableTargetParameter{"Compressor:knee", 1.0, 8.0},
-          RoutingTableTargetParameter{"Compressor:mix", 0.0, 1.0},
+          processing::saturator_level_in,
+          processing::saturator_drive,
+          processing::saturator_blend,
+          processing::saturator_level_out,
+          processing::compressor_threshold,
+          processing::compressor_ratio,
+          processing::compressor_attack,
+          processing::compressor_release,
+          processing::compressor_makeup,
+          processing::compressor_knee,
+          processing::compressor_mix,
           std::nullopt,
-          RoutingTableTargetParameter{"Equalizer:low", -24, 24},
-          RoutingTableTargetParameter{"Equalizer:mid", -24, 24},
-          RoutingTableTargetParameter{"Equalizer:high", -24, 24},
-          RoutingTableTargetParameter{"Equalizer:master", -24, 24},
-          RoutingTableTargetParameter{"Equalizer:low_mid", 0.0, 1000.0},
-          RoutingTableTargetParameter{"Equalizer:mid_high", 1000.0, 20000.0},
+          processing::equalizer_low,
+          processing::equalizer_mid,
+          processing::equalizer_high,
+          processing::equalizer_master,
+          processing::equalizer_low_mid,
+          processing::equalizer_mid_high,
       };
 };
 

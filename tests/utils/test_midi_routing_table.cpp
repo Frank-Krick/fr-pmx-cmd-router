@@ -10,71 +10,71 @@ TEST(FindTargetParameterShouldMapMidiControlValues) {
 
   auto target = table.find_target_parameter({0b10110001, 1, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Saturator:level_in");
+  ASSERT_STREQ(target.value().full_name, "Saturator:level_in");
 
   target = table.find_target_parameter({0b10110101, 2, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Saturator:drive");
+  ASSERT_STREQ(target.value().full_name, "Saturator:drive");
 
   target = table.find_target_parameter({0b10110011, 3, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Saturator:blend");
+  ASSERT_STREQ(target.value().full_name, "Saturator:blend");
 
   target = table.find_target_parameter({0b10110011, 4, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Saturator:level_out");
+  ASSERT_STREQ(target.value().full_name, "Saturator:level_out");
 
   target = table.find_target_parameter({0b10110011, 5, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:threshold");
+  ASSERT_STREQ(target.value().full_name, "Compressor:threshold");
 
   target = table.find_target_parameter({0b10110011, 6, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:ratio");
+  ASSERT_STREQ(target.value().full_name, "Compressor:ratio");
 
   target = table.find_target_parameter({0b10110011, 7, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:attack");
+  ASSERT_STREQ(target.value().full_name, "Compressor:attack");
 
   target = table.find_target_parameter({0b10110011, 8, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:release");
+  ASSERT_STREQ(target.value().full_name, "Compressor:release");
 
   target = table.find_target_parameter({0b10110011, 9, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:makeup");
+  ASSERT_STREQ(target.value().full_name, "Compressor:makeup");
 
   target = table.find_target_parameter({0b10110011, 10, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:knee");
+  ASSERT_STREQ(target.value().full_name, "Compressor:knee");
 
   target = table.find_target_parameter({0b10110011, 11, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Compressor:mix");
+  ASSERT_STREQ(target.value().full_name, "Compressor:mix");
 
   target = table.find_target_parameter({0b10110011, 13, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Equalizer:low");
+  ASSERT_STREQ(target.value().full_name, "Equalizer:low");
 
   target = table.find_target_parameter({0b10110011, 14, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Equalizer:mid");
+  ASSERT_STREQ(target.value().full_name, "Equalizer:mid");
 
   target = table.find_target_parameter({0b10110011, 15, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Equalizer:high");
+  ASSERT_STREQ(target.value().full_name, "Equalizer:high");
 
   target = table.find_target_parameter({0b10110011, 16, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Equalizer:master");
+  ASSERT_STREQ(target.value().full_name, "Equalizer:master");
 
   target = table.find_target_parameter({0b10110011, 17, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Equalizer:low_mid");
+  ASSERT_STREQ(target.value().full_name, "Equalizer:low_mid");
 
   target = table.find_target_parameter({0b10110011, 18, 32});
   ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().parameter_name, "Equalizer:mid_high");
+  ASSERT_STREQ(target.value().full_name, "Equalizer:mid_high");
 }
 
 TEST(FindTargetParameterShouldRejectUnmappedControlNumbers) {

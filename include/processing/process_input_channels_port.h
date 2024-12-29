@@ -85,8 +85,7 @@ public:
                             << "target_node: " << target_node_id.value().id
                             << std::endl
                             << "target_parameter: "
-                            << target_parameter.value().parameter_name
-                            << std::endl;
+                            << target_parameter.value().full_name << std::endl;
 
                   auto target_node =
                       node_registry.get_node_by_id(target_node_id->id);
@@ -100,7 +99,7 @@ public:
                     pw_invoke_set_param_data invoke_data{
                         target_node_id.value().id, target_node->client, result};
                     strncpy(invoke_data.parameter_name,
-                            target_parameter->parameter_name.c_str(),
+                            target_parameter->full_name.c_str(),
                             sizeof(invoke_data.parameter_name));
                     pw_loop_invoke(
                         pw_main_loop_get_loop(loop),
