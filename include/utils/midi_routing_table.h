@@ -1,6 +1,8 @@
 #pragma once
 
+#include "processing/midi_message_processor.h"
 #include "processing/parameters.h"
+
 #include <array>
 #include <optional>
 #include <sys/types.h>
@@ -13,6 +15,25 @@ struct RoutingTableTargetNode {
 
 class InputChannelsMidiRoutingTable {
 public:
+  std::optional<struct processing::parameter> find_target_parameter(
+      processing::MidiMessageProcessor::midi_cc_message &message) {
+    if (message.cc_number <
+        InputChannelsMidiRoutingTable::control_number_mapping.size()) {
+      return control_number_mapping[message.cc_number];
+    }
+
+    return {};
+  }
+
+  std::optional<RoutingTableTargetNode>
+  find_target_node(processing::MidiMessageProcessor::midi_cc_message &message) {
+    if (message.channel < channel_node_mapping.size()) {
+      return channel_node_mapping[message.channel];
+    }
+
+    return {};
+  }
+
   std::optional<struct processing::parameter>
   find_target_parameter(std::array<u_int8_t, 3> midi_message) {
     if ((midi_message[0] & 0b11110000) == 0b10110000) {

@@ -16,36 +16,62 @@
 
 namespace processing {
 
-typedef std::function<double(struct parameter &, u_int8_t control_value)>
-    parameter_interpolator;
-
-struct parameter_change_event {
-  parameter &parameter = none;
-  u_int8_t control_value;
-  double value;
-};
-
 class MidiMessageProcessor {
 public:
-  void process_port(processing::port *port,
-                    std::span<parameter_change_event> updates) {
+  struct parameter_change_event {
+    parameter &parameter = none;
+    u_int8_t control_value;
+    double value;
 
-    struct pw_buffer *pw_buffer;
-    if ((pw_buffer = pw_filter_dequeue_buffer(port)) == nullptr) {
-      return;
+    parameter_change_event(const parameter_change_event &) = default;
+    parameter_change_event(parameter_change_event &&) = default;
+    parameter_change_event &operator=(const parameter_change_event &other) {
+      this->parameter = other.parameter;
+      this->control_value = other.control_value;
+      this->value = other.value;
+      return *this;
     }
 
-    for (unsigned int i = 0; i < pw_buffer->buffer->n_datas; i++) {
-      auto pod = get_pod_sequence(pw_buffer, i);
+    parameter_change_event &operator=(parameter_change_event &&other) {
+      this->parameter = other.parameter;
+      this->control_value = other.control_value;
+      this->value = other.value;
+      return *this;
+    }
+  };
 
-      if (pod) {
+  struct midi_cc_message {
+    u_int8_t channel;
+    u_int8_t cc_number;
+    u_int8_t value;
+  };
+
+  typedef std::function<std::optional<parameter_change_event>(midi_cc_message)>
+      midi_cc_message_processor;
+
+  void process_port(processing::port *port,
+                    std::span<parameter_change_event> updates,
+                    midi_cc_message_processor message_processor) {
+
+    auto pw_buffer = dequeue_buffer(port);
+
+    if (pw_buffer) {
+      for (unsigned int i = 0; i < pw_buffer.value()->buffer->n_datas; i++) {
+        auto pod = get_pod_sequence(pw_buffer.value(), i);
+
+        if (!pod)
+          continue;
+
         struct spa_pod_control *pod_control;
+        auto event_list_iterator = updates.begin();
         SPA_POD_SEQUENCE_FOREACH(pod.value(), pod_control) {
-          if (pod_control->type == SPA_CONTROL_Midi) {
-            uint8_t *data = nullptr;
-            uint32_t length;
-            spa_pod_get_bytes(&pod_control->value, (const void **)&data,
-                              &length);
+          auto midi_cc_message = get_midi_cc_message(pod_control);
+          if (midi_cc_message) {
+            auto event = message_processor(midi_cc_message.value());
+            if (event) {
+              *event_list_iterator = event.value();
+              event_list_iterator++;
+            }
           }
         }
       }
@@ -53,6 +79,15 @@ public:
   }
 
 private:
+  std::optional<struct pw_buffer *> dequeue_buffer(processing::port *port) {
+    struct pw_buffer *pw_buffer;
+    if ((pw_buffer = pw_filter_dequeue_buffer(port)) == nullptr) {
+      return {};
+    }
+
+    return pw_buffer;
+  }
+
   std::optional<struct spa_pod_sequence *>
   get_pod_sequence(struct pw_buffer *pw_buffer, size_t index) {
     auto pod = static_cast<struct spa_pod *>(
@@ -68,7 +103,7 @@ private:
     return reinterpret_cast<struct spa_pod_sequence *>(pod);
   }
 
-  std::optional<std::array<uint8_t, 3>>
+  std::optional<midi_cc_message>
   get_midi_cc_message(struct spa_pod_control *pod_control) {
     if (pod_control->type != SPA_CONTROL_Midi) {
       return {};
@@ -93,7 +128,7 @@ private:
       return {};
     }
 
-    return {};
+    return midi_cc_message{channel, data[1], data[2]};
   }
 };
 
