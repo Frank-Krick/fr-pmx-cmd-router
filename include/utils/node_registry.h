@@ -2,8 +2,9 @@
 
 #include <algorithm>
 #include <optional>
-#include <pipewire/client.h>
 #include <vector>
+
+#include <pipewire/client.h>
 
 namespace utils {
 struct Node {

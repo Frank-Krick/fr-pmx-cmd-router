@@ -12,6 +12,7 @@ executable(
 midi_rounting_table_unit_tests = executable(
   'midi routing table', 
   'tests/utils/test_midi_routing_table.cpp',
+  dependencies: [pipewire_dep],
   include_directories: [include_directory])
 
 test(

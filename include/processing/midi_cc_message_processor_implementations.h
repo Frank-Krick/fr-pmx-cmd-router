@@ -4,6 +4,7 @@
 #include "utils/interpolator.h"
 #include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
+#include "utils/pipewire_service.h"
 
 #include <optional>
 
@@ -15,8 +16,10 @@ class InputChannelMidiMessageProcessor {
 public:
   InputChannelMidiMessageProcessor(
       utils::InputChannelsMidiRoutingTable &routing_table,
-      utils::NodeRegistry &node_registry)
-      : routing_table(routing_table), node_registry(node_registry) {}
+      utils::NodeRegistry &node_registry,
+      utils::PipewireService &pipewire_service)
+      : routing_table(routing_table), node_registry(node_registry),
+        pipewire_service(pipewire_service) {}
 
   std::optional<MidiMessageProcessor::parameter_change_event>
   operator()(MidiMessageProcessor::midi_cc_message message) {
@@ -29,6 +32,9 @@ public:
       if (node) {
         auto target_value = utils::Interpolator::interpolate(
             target_parameter.value(), message.value);
+
+        return MidiMessageProcessor::parameter_change_event(
+            target_parameter, node, message.value, target_value);
       }
     }
 
@@ -38,6 +44,7 @@ public:
 private:
   utils::InputChannelsMidiRoutingTable &routing_table;
   utils::NodeRegistry &node_registry;
+  utils::PipewireService &pipewire_service;
 };
 
 } // namespace implementation

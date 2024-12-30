@@ -2,7 +2,7 @@
 
 #include "processing/parameters.h"
 #include "processing/port.h"
-#include "spa/pod/pod.h"
+#include "utils/node_registry.h"
 
 #include <functional>
 
@@ -13,15 +13,23 @@
 #include <pipewire/filter.h>
 #include <spa/control/control.h>
 #include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
 
 namespace processing {
 
 class MidiMessageProcessor {
 public:
-  struct parameter_change_event {
-    parameter &parameter = none;
+  class parameter_change_event {
+  public:
+    processing::parameter &parameter;
+    utils::Node node;
     u_int8_t control_value;
     double value;
+
+    parameter_change_event(struct parameter &parameter, utils::Node node,
+                           u_int8_t control_value, double value)
+        : parameter(parameter), node(node), control_value(control_value),
+          value(value) {}
 
     parameter_change_event(const parameter_change_event &) = default;
     parameter_change_event(parameter_change_event &&) = default;
@@ -29,6 +37,7 @@ public:
       this->parameter = other.parameter;
       this->control_value = other.control_value;
       this->value = other.value;
+      this->node = other.node;
       return *this;
     }
 
@@ -36,6 +45,7 @@ public:
       this->parameter = other.parameter;
       this->control_value = other.control_value;
       this->value = other.value;
+      this->node = other.node;
       return *this;
     }
   };
