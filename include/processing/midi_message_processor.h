@@ -3,6 +3,7 @@
 #include "processing/parameters.h"
 #include "processing/port.h"
 #include "utils/node_registry.h"
+#include "utils/pipewire_service.h"
 
 #include <functional>
 
@@ -25,6 +26,11 @@ public:
     utils::Node node;
     u_int8_t control_value;
     double value;
+
+    parameter_change_event() : parameter(none) {
+      control_value = 0;
+      value = 0.0;
+    }
 
     parameter_change_event(struct parameter &parameter, utils::Node node,
                            u_int8_t control_value, double value)
@@ -59,9 +65,9 @@ public:
   typedef std::function<std::optional<parameter_change_event>(midi_cc_message)>
       midi_cc_message_processor;
 
-  void process_port(processing::port *port,
-                    std::span<parameter_change_event> updates,
-                    midi_cc_message_processor message_processor) {
+  void process_port_messages(processing::port *port,
+                             std::span<parameter_change_event> updates,
+                             midi_cc_message_processor message_processor) {
 
     auto pw_buffer = dequeue_buffer(port);
 

@@ -6,6 +6,7 @@ include_directory = include_directories('include')
 executable(
   'fr-pmx-ctl-router',
   'src/main.cpp',
+  'src/application.cpp',
   dependencies: [pipewire_dep],
   include_directories: [include_directory])
 
