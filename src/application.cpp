@@ -1,8 +1,11 @@
 #include "application/application.h"
 #include "processing/midi_cc_message_processor_implementations.h"
 #include "processing/midi_message_processor.h"
+#include "processing/parameters.h"
 
 #include <array>
+#include <iostream>
+#include <ranges>
 #include <sstream>
 #include <string>
 
@@ -27,6 +30,21 @@ void application::Application::on_process(void *user_data,
   this_pointer->midi_message_processor.process_port_messages(
       this_pointer->input_channels_port, updates,
       this_pointer->input_channel_port_processor.value());
+
+  auto filtered_updates = updates | std::ranges::views::filter([](auto &e) {
+                            return &e.parameter == &processing::none;
+                          });
+
+  this_pointer->midi_message_processor.process_port_messages(
+      this_pointer->group_channels_port, filtered_updates,
+      this_pointer->group_channel_port_processor.value());
+
+  for (auto &&update : updates | std::ranges::views::filter([](auto &e) {
+                         return &e.parameter != &processing::none;
+                       })) {
+    std::cout << "Change event: " << update.parameter.full_name << ": "
+              << update.value << std::endl;
+  }
 }
 
 void application::Application::handle_filter_param_update(
@@ -129,7 +147,7 @@ application::Application::Application(int argc, char *argv[]) {
   context = pw_context_new(pw_main_loop_get_loop(loop), nullptr, 0);
   core = pw_context_connect(context, nullptr, 0);
   registry = pw_core_get_registry(core, PW_VERSION_REGISTRY, 0);
-  struct spa_hook registry_listener;
+
   spa_zero(registry_listener);
   pw_registry_add_listener(registry, &registry_listener, &registry_events,
                            this);

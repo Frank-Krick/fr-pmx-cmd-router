@@ -41,6 +41,7 @@ private:
   struct pw_core *core;
   struct pw_registry *registry;
   struct pw_filter *filter;
+  struct spa_hook registry_listener;
   utils::NodeRegistry node_registry;
   utils::InputChannelsMidiRoutingTable input_channels_midi_routing_table;
   processing::GroupChannelsMidiRoutingTable group_channels_midi_routing_table;

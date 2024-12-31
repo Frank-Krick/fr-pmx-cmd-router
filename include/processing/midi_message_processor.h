@@ -3,12 +3,10 @@
 #include "processing/parameters.h"
 #include "processing/port.h"
 #include "utils/node_registry.h"
-#include "utils/pipewire_service.h"
 
 #include <functional>
 
 #include <optional>
-#include <span>
 #include <sys/types.h>
 
 #include <pipewire/filter.h>
@@ -65,8 +63,8 @@ public:
   typedef std::function<std::optional<parameter_change_event>(midi_cc_message)>
       midi_cc_message_processor;
 
-  void process_port_messages(processing::port *port,
-                             std::span<parameter_change_event> updates,
+  template <class I>
+  void process_port_messages(processing::port *port, I updates,
                              midi_cc_message_processor message_processor) {
 
     auto pw_buffer = dequeue_buffer(port);
