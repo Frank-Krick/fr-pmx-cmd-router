@@ -80,20 +80,20 @@ public:
                             << "group id: " << target.value().group_id
                             << std::endl
                             << "target parameter: "
-                            << target.value().parameter.full_name << std::endl;
+                            << target.value().parameter->full_name << std::endl;
 
                   auto target_node = node_registry.get_node_by_id(target_id);
 
                   if (target_node) {
                     double normalized_value = (double)data[2] / 127.0;
                     double result =
-                        target->parameter.min +
-                        (target->parameter.max - target->parameter.min) *
+                        target->parameter->min +
+                        (target->parameter->max - target->parameter->min) *
                             normalized_value;
                     pw_invoke_set_param_data invoke_data{
                         target_id, target_node->client, result};
                     strncpy(invoke_data.parameter_name,
-                            target->parameter.full_name.c_str(),
+                            target->parameter->full_name.c_str(),
                             sizeof(invoke_data.parameter_name));
                     pw_loop_invoke(
                         pw_main_loop_get_loop(loop),

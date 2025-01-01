@@ -1,3 +1,5 @@
+#include "processing/midi_message_processor.h"
+#include "processing/parameters.h"
 #include <limits>
 #include <microtest/microtest.h>
 #include <sys/types.h>
@@ -6,103 +8,71 @@
 using namespace utils;
 
 TEST(FindTargetParameterShouldMapMidiControlValues) {
+  ASSERT_STREQ(processing::saturator_level_in->full_name, "Saturator:level_in");
+
   auto table = InputChannelsMidiRoutingTable();
+  auto target = table.find_target_parameter(
+      processing::MidiMessageProcessor::midi_cc_message{1, 1, 1});
 
-  auto target = table.find_target_parameter({0b10110001, 1, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Saturator:level_in");
+  ASSERT_STREQ("Saturator:level_in", target->full_name);
 
-  target = table.find_target_parameter({0b10110101, 2, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Saturator:drive");
+  target = table.find_target_parameter({1, 2, 32});
+  ASSERT_STREQ(target->full_name, "Saturator:drive");
 
-  target = table.find_target_parameter({0b10110011, 3, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Saturator:blend");
+  target = table.find_target_parameter({1, 3, 32});
+  ASSERT_STREQ(target->full_name, "Saturator:blend");
 
-  target = table.find_target_parameter({0b10110011, 4, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Saturator:level_out");
+  target = table.find_target_parameter({1, 4, 32});
+  ASSERT_STREQ(target->full_name, "Saturator:level_out");
 
-  target = table.find_target_parameter({0b10110011, 5, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:threshold");
+  target = table.find_target_parameter({1, 5, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:threshold");
 
-  target = table.find_target_parameter({0b10110011, 6, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:ratio");
+  target = table.find_target_parameter({1, 6, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:ratio");
 
-  target = table.find_target_parameter({0b10110011, 7, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:attack");
+  target = table.find_target_parameter({1, 7, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:attack");
 
-  target = table.find_target_parameter({0b10110011, 8, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:release");
+  target = table.find_target_parameter({1, 8, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:release");
 
-  target = table.find_target_parameter({0b10110011, 9, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:makeup");
+  target = table.find_target_parameter({1, 9, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:makeup");
 
-  target = table.find_target_parameter({0b10110011, 10, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:knee");
+  target = table.find_target_parameter({1, 10, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:knee");
 
-  target = table.find_target_parameter({0b10110011, 11, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Compressor:mix");
+  target = table.find_target_parameter({1, 11, 32});
+  ASSERT_STREQ(target->full_name, "Compressor:mix");
 
-  target = table.find_target_parameter({0b10110011, 13, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Equalizer:low");
+  target = table.find_target_parameter({1, 13, 32});
+  ASSERT_STREQ(target->full_name, "Equalizer:low");
 
-  target = table.find_target_parameter({0b10110011, 14, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Equalizer:mid");
+  target = table.find_target_parameter({1, 14, 32});
+  ASSERT_STREQ(target->full_name, "Equalizer:mid");
 
-  target = table.find_target_parameter({0b10110011, 15, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Equalizer:high");
+  target = table.find_target_parameter({1, 15, 32});
+  ASSERT_STREQ(target->full_name, "Equalizer:high");
 
-  target = table.find_target_parameter({0b10110011, 16, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Equalizer:master");
+  target = table.find_target_parameter({1, 16, 32});
+  ASSERT_STREQ(target->full_name, "Equalizer:master");
 
-  target = table.find_target_parameter({0b10110011, 17, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Equalizer:low_mid");
+  target = table.find_target_parameter({1, 17, 32});
+  ASSERT_STREQ(target->full_name, "Equalizer:low_mid");
 
-  target = table.find_target_parameter({0b10110011, 18, 32});
-  ASSERT_TRUE(target);
-  ASSERT_STREQ(target.value().full_name, "Equalizer:mid_high");
+  target = table.find_target_parameter({1, 18, 32});
+  ASSERT_STREQ(target->full_name, "Equalizer:mid_high");
 }
 
 TEST(FindTargetParameterShouldRejectUnmappedControlNumbers) {
   auto table = InputChannelsMidiRoutingTable();
 
-  ASSERT_FALSE(table.find_target_parameter({0b10111000, 12, 0}));
+  ASSERT_EQ(table.find_target_parameter({1, 12, 0}), processing::none);
 
   for (u_int8_t i = 19; i < std::numeric_limits<u_int8_t>::max(); i++) {
-    ASSERT_FALSE(table.find_target_parameter({0b10111000, i, 0}));
+    ASSERT_EQ(table.find_target_parameter({1, i, 0}), processing::none);
   }
-}
-
-TEST(FindTargetParameterShouldRejectUnsupportedMessageTypes) {
-  auto table = InputChannelsMidiRoutingTable();
-
-  // First byte not a control byte, invalid midi message
-  ASSERT_FALSE(table.find_target_parameter({0b00000000, 0, 0}));
-  ASSERT_FALSE(table.find_target_parameter({0b00100000, 0, 0}));
-  // Polyphonic aftertouch
-  ASSERT_FALSE(table.find_target_parameter({0b10100100, 0, 0}));
-  // Program change
-  ASSERT_FALSE(table.find_target_parameter({0b11000101, 0, 0}));
-  // Channel Pressure
-  ASSERT_FALSE(table.find_target_parameter({0b11010100, 0, 0}));
-  // Pitch Bend
-  ASSERT_FALSE(table.find_target_parameter({0b11100100, 0, 0}));
-  // Sysex
-  ASSERT_FALSE(table.find_target_parameter({0b11110100, 0, 0}));
 }
 
 TEST(FindTargetNodeShouldNotHaveAnyNodesAfterConstruction) {

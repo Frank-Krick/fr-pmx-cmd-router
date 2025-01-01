@@ -13,13 +13,23 @@ class GroupChannelsMidiRoutingTable {
 public:
   struct RoutingTableTargetParameter {
     u_int8_t group_id;
-    struct parameter &parameter = none;
+    std::shared_ptr<struct parameter> parameter = none;
   };
 
   std::optional<RoutingTableTargetParameter>
   get_target_by_cc_number(u_int8_t cc_number) {
-    if (control_number_mapping.contains(cc_number)) {
-      return control_number_mapping[cc_number];
+    if (cc_number >= 10 && cc_number < 14) {
+      return RoutingTableTargetParameter{static_cast<u_int8_t>(cc_number - 9),
+                                         equalizer_high};
+    } else if (cc_number >= 14 && cc_number < 18) {
+      return RoutingTableTargetParameter{static_cast<u_int8_t>(cc_number - 13),
+                                         equalizer_mid};
+    } else if (cc_number >= 18 && cc_number < 22) {
+      return RoutingTableTargetParameter{static_cast<u_int8_t>(cc_number - 17),
+                                         equalizer_low};
+    } else if (cc_number >= 48 && cc_number < 52) {
+      return RoutingTableTargetParameter{static_cast<u_int8_t>(cc_number - 47),
+                                         equalizer_master};
     }
 
     return {};

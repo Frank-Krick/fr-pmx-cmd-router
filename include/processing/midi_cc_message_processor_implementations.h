@@ -2,6 +2,7 @@
 
 #include "processing/group_channels_midi_processor.h"
 #include "processing/midi_message_processor.h"
+#include "processing/parameters.h"
 #include "utils/interpolator.h"
 #include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
@@ -35,22 +36,30 @@ public:
   std::optional<MidiMessageProcessor::parameter_change_event>
   operator()(MidiMessageProcessor::midi_cc_message message) {
     auto target_parameter = routing_table.find_target_parameter(message);
-    auto target_node = routing_table.find_target_node(message);
 
-    if (target_parameter && target_node) {
-      auto node = node_registry.get_node_by_id(target_node->id);
-
-      if (node) {
-        auto target_value = utils::Interpolator::interpolate(
-            target_parameter.value(), message.value);
-
-        return MidiMessageProcessor::parameter_change_event(
-            target_parameter.value(), node.value(), message.value,
-            target_value);
-      }
+    if (target_parameter == processing::none) {
+      std::cout << "couldn't find target parameter" << std::endl;
+      return {};
     }
 
-    return {};
+    auto target_node = routing_table.find_target_node(message);
+    if (!target_node) {
+      std::cout << "couldn't find target node" << std::endl;
+      return {};
+    }
+
+    auto node = node_registry.get_node_by_id(target_node->id);
+
+    if (!node) {
+      std::cout << "couldn't find node" << std::endl;
+      return {};
+    }
+
+    auto target_value =
+        utils::Interpolator::interpolate(*target_parameter, message.value);
+
+    return MidiMessageProcessor::parameter_change_event(
+        target_parameter, node.value(), message.value, target_value);
   }
 
 private:
@@ -91,6 +100,7 @@ public:
         routing_table.get_target_by_cc_number(message.cc_number);
 
     if (!target_parameter) {
+      std::cout << "no target param found" << std::endl;
       return {};
     }
 
@@ -99,11 +109,12 @@ public:
     auto node = node_registry.get_node_by_id(target_id);
 
     if (!node) {
+      std::cout << "no node found" << std::endl;
       return {};
     }
 
     auto target_value = utils::Interpolator::interpolate(
-        target_parameter.value().parameter, message.value);
+        *target_parameter.value().parameter, message.value);
 
     return MidiMessageProcessor::parameter_change_event(
         target_parameter.value().parameter, node.value(), message.value,

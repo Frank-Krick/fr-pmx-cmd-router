@@ -15,14 +15,50 @@ struct RoutingTableTargetNode {
 
 class InputChannelsMidiRoutingTable {
 public:
-  std::optional<struct processing::parameter> find_target_parameter(
-      processing::MidiMessageProcessor::midi_cc_message &message) {
-    if (message.cc_number <
-        InputChannelsMidiRoutingTable::control_number_mapping.size()) {
-      return control_number_mapping[message.cc_number];
-    }
+  std::shared_ptr<struct processing::parameter> find_target_parameter(
+      processing::MidiMessageProcessor::midi_cc_message message) {
 
-    return {};
+    if (message.cc_number == 0) {
+      return processing::none;
+    } else if (message.cc_number == 1) {
+      return processing::saturator_level_in;
+    } else if (message.cc_number == 2) {
+      return processing::saturator_drive;
+    } else if (message.cc_number == 3) {
+      return processing::saturator_blend;
+    } else if (message.cc_number == 4) {
+      return processing::saturator_level_out;
+    } else if (message.cc_number == 5) {
+      return processing::compressor_threshold;
+    } else if (message.cc_number == 6) {
+      return processing::compressor_ratio;
+    } else if (message.cc_number == 7) {
+      return processing::compressor_attack;
+    } else if (message.cc_number == 8) {
+      return processing::compressor_release;
+    } else if (message.cc_number == 9) {
+      return processing::compressor_makeup;
+    } else if (message.cc_number == 10) {
+      return processing::compressor_knee;
+    } else if (message.cc_number == 11) {
+      return processing::compressor_mix;
+    } else if (message.cc_number == 12) {
+      return processing::none;
+    } else if (message.cc_number == 13) {
+      return processing::equalizer_low;
+    } else if (message.cc_number == 14) {
+      return processing::equalizer_mid;
+    } else if (message.cc_number == 15) {
+      return processing::equalizer_high;
+    } else if (message.cc_number == 16) {
+      return processing::equalizer_master;
+    } else if (message.cc_number == 17) {
+      return processing::equalizer_low_mid;
+    } else if (message.cc_number == 18) {
+      return processing::equalizer_mid_high;
+    } else {
+      return processing::none;
+    }
   }
 
   std::optional<RoutingTableTargetNode>
@@ -31,17 +67,6 @@ public:
       return channel_node_mapping[message.channel];
     }
 
-    return {};
-  }
-
-  std::optional<struct processing::parameter>
-  find_target_parameter(std::array<u_int8_t, 3> midi_message) {
-    if ((midi_message[0] & 0b11110000) == 0b10110000) {
-      if (midi_message[1] <
-          InputChannelsMidiRoutingTable::control_number_mapping.size()) {
-        return control_number_mapping[midi_message[1]];
-      }
-    }
     return {};
   }
 
@@ -73,9 +98,9 @@ private:
   inline static std::array<std::optional<RoutingTableTargetNode>, 17>
       channel_node_mapping{};
 
-  inline static std::array<std::optional<processing::parameter>, 19>
+  inline static std::array<std::shared_ptr<processing::parameter>, 19>
       control_number_mapping{
-          std::nullopt,
+          processing::none,
           processing::saturator_level_in,
           processing::saturator_drive,
           processing::saturator_blend,
@@ -87,7 +112,7 @@ private:
           processing::compressor_makeup,
           processing::compressor_knee,
           processing::compressor_mix,
-          std::nullopt,
+          processing::none,
           processing::equalizer_low,
           processing::equalizer_mid,
           processing::equalizer_high,

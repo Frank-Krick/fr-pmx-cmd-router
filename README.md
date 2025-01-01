@@ -112,6 +112,8 @@ Mixing the layers is controlled by a Native Instruments DJ Controller.
   `pw-cli s <node_id> Props '{params = [pmx.channel_mapping "<mappings>"]}'`
 - Mappings is a list of arrays, the first entry is the midi channel, the second
   entry is the node id of the input node of the filter chain
+- Set group channel ids with
+  `pw-cli s <node_id> Props '{params = [pmx.group_channel_node_ids "<list of group ids>"]}'`
 
 ## Example
 

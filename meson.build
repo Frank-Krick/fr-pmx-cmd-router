@@ -7,12 +7,14 @@ executable(
   'fr-pmx-ctl-router',
   'src/main.cpp',
   'src/application.cpp',
+  'src/parameters.cpp',
   dependencies: [pipewire_dep],
   include_directories: [include_directory])
 
 midi_rounting_table_unit_tests = executable(
   'midi routing table', 
   'tests/utils/test_midi_routing_table.cpp',
+  'src/parameters.cpp',
   dependencies: [pipewire_dep],
   include_directories: [include_directory])
 
@@ -23,6 +25,7 @@ test(
 build_set_params_message_tests = executable(
   'build set params message',
   'tests/utils/test_build_set_params_message.cpp',
+  'src/parameters.cpp',
   dependencies: [pipewire_dep],
   include_directories: [include_directory])
 

@@ -5,6 +5,7 @@
 
 #include <array>
 #include <iostream>
+#include <ostream>
 #include <ranges>
 #include <sstream>
 #include <string>
@@ -31,18 +32,14 @@ void application::Application::on_process(void *user_data,
       this_pointer->input_channels_port, updates,
       this_pointer->input_channel_port_processor.value());
 
-  auto filtered_updates = updates | std::ranges::views::filter([](auto &e) {
-                            return &e.parameter == &processing::none;
-                          });
-
   this_pointer->midi_message_processor.process_port_messages(
-      this_pointer->group_channels_port, filtered_updates,
+      this_pointer->group_channels_port, updates,
       this_pointer->group_channel_port_processor.value());
 
   for (auto &&update : updates | std::ranges::views::filter([](auto &e) {
-                         return &e.parameter != &processing::none;
+                         return e.parameter != processing::none;
                        })) {
-    std::cout << "Change event: " << update.parameter.full_name << ": "
+    std::cout << "Change event: " << update.parameter->full_name << ": "
               << update.value << std::endl;
   }
 }

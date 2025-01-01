@@ -5,8 +5,8 @@
 #include "utils/node_registry.h"
 
 #include <functional>
-
 #include <optional>
+
 #include <sys/types.h>
 
 #include <pipewire/filter.h>
@@ -20,7 +20,7 @@ class MidiMessageProcessor {
 public:
   class parameter_change_event {
   public:
-    processing::parameter &parameter;
+    std::shared_ptr<processing::parameter> parameter;
     utils::Node node;
     u_int8_t control_value;
     double value;
@@ -30,8 +30,9 @@ public:
       value = 0.0;
     }
 
-    parameter_change_event(struct parameter &parameter, utils::Node node,
-                           u_int8_t control_value, double value)
+    parameter_change_event(std::shared_ptr<struct parameter> parameter,
+                           utils::Node node, u_int8_t control_value,
+                           double value)
         : parameter(parameter), node(node), control_value(control_value),
           value(value) {}
 
@@ -64,32 +65,39 @@ public:
       midi_cc_message_processor;
 
   template <class I>
-  void process_port_messages(processing::port *port, I updates,
+  void process_port_messages(processing::port *port, I &updates,
                              midi_cc_message_processor message_processor) {
 
     auto pw_buffer = dequeue_buffer(port);
 
-    if (pw_buffer) {
-      for (unsigned int i = 0; i < pw_buffer.value()->buffer->n_datas; i++) {
-        auto pod = get_pod_sequence(pw_buffer.value(), i);
+    if (!pw_buffer) {
+      return;
+    }
 
-        if (!pod)
-          continue;
+    for (unsigned int i = 0; i < pw_buffer.value()->buffer->n_datas; i++) {
+      auto pod = get_pod_sequence(pw_buffer.value(), i);
 
-        struct spa_pod_control *pod_control;
-        auto event_list_iterator = updates.begin();
-        SPA_POD_SEQUENCE_FOREACH(pod.value(), pod_control) {
-          auto midi_cc_message = get_midi_cc_message(pod_control);
-          if (midi_cc_message) {
-            auto event = message_processor(midi_cc_message.value());
-            if (event) {
-              *event_list_iterator = event.value();
-              event_list_iterator++;
-            }
+      if (!pod)
+        continue;
+
+      struct spa_pod_control *pod_control;
+      auto event_list_iterator = updates.begin();
+      SPA_POD_SEQUENCE_FOREACH(pod.value(), pod_control) {
+        auto midi_cc_message = get_midi_cc_message(pod_control);
+        if (midi_cc_message) {
+          auto event = message_processor(midi_cc_message.value());
+          if (event) {
+            event_list_iterator->parameter = event.value().parameter;
+            event_list_iterator->node = event.value().node;
+            event_list_iterator->control_value = event.value().control_value;
+            event_list_iterator->value = event.value().value;
+            event_list_iterator++;
           }
         }
       }
     }
+
+    pw_filter_queue_buffer(port, pw_buffer.value());
   }
 
 private:
