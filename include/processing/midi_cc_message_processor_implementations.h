@@ -7,6 +7,7 @@
 #include "utils/midi_routing_table.h"
 #include "utils/node_registry.h"
 
+#include <iostream>
 #include <optional>
 
 namespace processing {
