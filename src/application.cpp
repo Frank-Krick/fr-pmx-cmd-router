@@ -1,9 +1,12 @@
 #include "application/application.h"
+#include "osc_service/osc_service.h"
 #include "processing/midi_cc_message_processor_implementations.h"
 #include "processing/midi_message_processor.h"
 #include "processing/parameters.h"
+#include "utils/pipewire_service.h"
 
 #include <array>
+#include <cstring>
 #include <iostream>
 #include <ostream>
 #include <ranges>
@@ -42,6 +45,49 @@ void application::Application::on_process(void *user_data,
     std::cout << "Change event: " << update.parameter->full_name << ": "
               << update.value << std::endl;
   }
+
+  std::cout << "Sending osc update" << std::endl;
+  auto pw_buffer =
+      utils::PipewireService::dequeue_buffer(this_pointer->updates_port);
+
+  if (!pw_buffer) {
+    return;
+  }
+
+  pw_filter_queue_buffer(this_pointer->updates_port, pw_buffer.value());
+  /*
+  char osc_buffer[1000];
+  auto actual_size =
+      osc_service::OscService::build_message(updates, &osc_buffer, 1000);
+
+  if (actual_size > 0) {
+    std::cout << "Sending osc update" << std::endl;
+    auto pw_buffer =
+        utils::PipewireService::dequeue_buffer(this_pointer->updates_port);
+
+    if (!pw_buffer) {
+      return;
+    }
+
+    struct spa_buffer *spa_buffer;
+    spa_buffer = pw_buffer.value()->buffer;
+    if (spa_buffer->datas[0].data == NULL) {
+      std::cout << "Buffer has no data" << std::endl;
+      return;
+    }
+
+    auto data_ptr = spa_buffer->datas[0].data;
+    auto max_size = spa_buffer->datas[0].maxsize;
+    if (actual_size > max_size) {
+      std::cout << "Buffer size too small" << std::endl;
+      return;
+    }
+
+    memcpy(data_ptr, osc_buffer, actual_size);
+    spa_buffer->datas[0].chunk->size = actual_size;
+    pw_filter_queue_buffer(this_pointer->updates_port, pw_buffer.value());
+  }
+  */
 }
 
 void application::Application::handle_filter_param_update(
@@ -172,6 +218,17 @@ application::Application::Application(int argc, char *argv[]) {
           pw_properties_new(PW_KEY_FORMAT_DSP, "8 bit raw midi",
                             PW_KEY_PORT_NAME, "group_channels_port", NULL),
           NULL, 0));
+
+  updates_port = static_cast<struct processing::port *>(pw_filter_add_port(
+      filter, PW_DIRECTION_OUTPUT, PW_FILTER_PORT_FLAG_MAP_BUFFERS,
+      sizeof(struct processing::port),
+      pw_properties_new(PW_KEY_FORMAT_DSP, "Osc", PW_KEY_PORT_NAME, "updates",
+                        NULL),
+      NULL, 0));
+
+  if (!updates_port) {
+    std::cout << "Couldn't create updates port: " << updates_port << std::endl;
+  }
 
   input_channel_port_processor = processing::InputChannelPortProcessor(
       input_channels_midi_routing_table, node_registry);

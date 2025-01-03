@@ -60,7 +60,8 @@ public:
         utils::Interpolator::interpolate(*target_parameter, message.value);
 
     return MidiMessageProcessor::parameter_change_event(
-        target_parameter, node.value(), message.value, target_value);
+        target_parameter, node.value(), message.value, target_value,
+        MidiMessageProcessor::A, message.channel, MidiMessageProcessor::INPUT);
   }
 
 private:
@@ -119,7 +120,8 @@ public:
 
     return MidiMessageProcessor::parameter_change_event(
         target_parameter.value().parameter, node.value(), message.value,
-        target_value);
+        target_value, MidiMessageProcessor::A,
+        target_parameter.value().group_id, MidiMessageProcessor::GROUP);
   }
 
 private:

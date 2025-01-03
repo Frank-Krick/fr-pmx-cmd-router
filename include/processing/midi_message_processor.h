@@ -3,6 +3,7 @@
 #include "processing/parameters.h"
 #include "processing/port.h"
 #include "utils/node_registry.h"
+#include "utils/pipewire_service.h"
 
 #include <functional>
 #include <optional>
@@ -18,31 +19,44 @@ namespace processing {
 
 class MidiMessageProcessor {
 public:
+  enum layer { A, B };
+
+  enum channel_type { INPUT, GROUP, LAYER };
+
   class parameter_change_event {
   public:
     std::shared_ptr<processing::parameter> parameter;
     utils::Node node;
     u_int8_t control_value;
     double value;
+    u_int8_t channel_number;
+    enum layer layer;
+    enum channel_type channel_type;
 
-    parameter_change_event() : parameter(none) {
-      control_value = 0;
-      value = 0.0;
-    }
+    parameter_change_event()
+        : parameter(none), control_value(0), value(0), channel_number(0),
+          layer(A), channel_type(INPUT) {}
 
     parameter_change_event(std::shared_ptr<struct parameter> parameter,
                            utils::Node node, u_int8_t control_value,
-                           double value)
+                           double value, enum layer layer,
+                           u_int8_t channel_number,
+                           enum channel_type channel_type)
         : parameter(parameter), node(node), control_value(control_value),
-          value(value) {}
+          value(value), channel_number(channel_number), layer(layer),
+          channel_type(channel_type) {}
 
     parameter_change_event(const parameter_change_event &) = default;
     parameter_change_event(parameter_change_event &&) = default;
+
     parameter_change_event &operator=(const parameter_change_event &other) {
       this->parameter = other.parameter;
       this->control_value = other.control_value;
       this->value = other.value;
       this->node = other.node;
+      this->channel_number = other.channel_number;
+      this->layer = other.layer;
+      this->channel_type = other.channel_type;
       return *this;
     }
 
@@ -51,6 +65,9 @@ public:
       this->control_value = other.control_value;
       this->value = other.value;
       this->node = other.node;
+      this->channel_number = other.channel_number;
+      this->layer = other.layer;
+      this->channel_type = other.channel_type;
       return *this;
     }
   };
@@ -68,7 +85,7 @@ public:
   void process_port_messages(processing::port *port, I &updates,
                              midi_cc_message_processor message_processor) {
 
-    auto pw_buffer = dequeue_buffer(port);
+    auto pw_buffer = utils::PipewireService::dequeue_buffer(port);
 
     if (!pw_buffer) {
       return;
@@ -101,15 +118,6 @@ public:
   }
 
 private:
-  std::optional<struct pw_buffer *> dequeue_buffer(processing::port *port) {
-    struct pw_buffer *pw_buffer;
-    if ((pw_buffer = pw_filter_dequeue_buffer(port)) == nullptr) {
-      return {};
-    }
-
-    return pw_buffer;
-  }
-
   std::optional<struct spa_pod_sequence *>
   get_pod_sequence(struct pw_buffer *pw_buffer, size_t index) {
     auto pod = static_cast<struct spa_pod *>(

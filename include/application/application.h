@@ -48,6 +48,7 @@ private:
   std::array<unsigned int, 4> group_to_node_id_mapping;
   struct processing::port *input_channels_port;
   struct processing::port *group_channels_port;
+  struct processing::port *updates_port;
   processing::MidiMessageProcessor midi_message_processor;
   std::optional<processing::InputChannelPortProcessor>
       input_channel_port_processor;

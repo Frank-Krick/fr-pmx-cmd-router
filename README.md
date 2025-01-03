@@ -106,6 +106,27 @@ Logic:
 
 Mixing the layers is controlled by a Native Instruments DJ Controller.
 
+## OSC Event Output
+
+- All updates are sent out as osc messages on the `updates` port.
+- The message is an osc bundle as raw bytes in a pod
+- The time for the bundle is always `0L`, the time from the Pod should be used
+  instead.
+- The address for the messages is
+  `/<channel_type>/<channel_number>/<device>`, where:
+  - channel_type is one of:
+    - I for input channels,
+    - G for group channels,
+    - L for layer channels
+  - channel_number is one of:
+    - `<layer_prefix><channel_number>` for channel type I and G
+    - `<layer_prefix>` for channel type L
+    - `<layer_prefix>` is either `A` or `B`
+  - device is:
+    - C for compressor,
+    - S for saturator,
+    - E for equalizer
+
 ## Notes
 
 - Set channel mapping with:
