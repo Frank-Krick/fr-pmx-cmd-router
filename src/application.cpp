@@ -73,9 +73,9 @@ void application::Application::on_process(void *user_data,
   if (std::ranges::count_if(updates, [](auto &&p) {
         return p.parameter != processing::none;
       }) > 0) {
-    char osc_buffer[2000];
+    char osc_buffer[4096];
     auto actual_size =
-        osc_service::OscService::build_message(updates, &osc_buffer, 1000);
+        osc_service::OscService::build_message(updates, &osc_buffer, 4096);
     spa_pod_builder_control(&builder, 0, SPA_CONTROL_OSC);
     spa_pod_builder_bytes(&builder, osc_buffer, actual_size);
   }

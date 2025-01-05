@@ -2,6 +2,7 @@
 #include "processing/midi_message_processor.h"
 #include "processing/parameters.h"
 
+#include <iostream>
 #include <oscpp/client.hpp>
 #include <sstream>
 
@@ -9,30 +10,21 @@ constexpr void add_channel_number(
     std::ostringstream &os,
     processing::MidiMessageProcessor::parameter_change_event &update) {
   if (update.layer == processing::MidiMessageProcessor::A) {
-    os << 'A';
+    os << "A/";
   } else if (update.layer == processing::MidiMessageProcessor::B) {
-    os << 'B';
-  }
-
-  if (update.channel_type == processing::MidiMessageProcessor::INPUT) {
-    os << update.channel_number << '/';
-  } else if (update.channel_type == processing::MidiMessageProcessor::GROUP) {
-    os << update.channel_number << '/';
-  } else if (update.channel_type == processing::MidiMessageProcessor::LAYER) {
-    os << '/';
+    os << "B/";
   }
 }
 
 constexpr void add_channel_type(
     std::ostringstream &os,
     processing::MidiMessageProcessor::parameter_change_event &update) {
-  os << '/';
   if (update.channel_type == processing::MidiMessageProcessor::INPUT) {
-    os << "I/";
+    os << "/I/";
   } else if (update.channel_type == processing::MidiMessageProcessor::GROUP) {
-    os << "G/";
+    os << "/G/";
   } else if (update.channel_type == processing::MidiMessageProcessor::LAYER) {
-    os << "L/";
+    os << "/L/";
   }
 }
 
@@ -50,10 +42,10 @@ add_device(std::ostringstream &os,
 
 constexpr void add_parameter(std::ostringstream &os,
                              processing::parameter &parameter) {
-  os << '/' << parameter.name;
+  os << "/" << parameter.name;
 }
 
-constexpr std::string create_message_path(
+std::string osc_service::OscService::create_message_path(
     processing::MidiMessageProcessor::parameter_change_event &update) {
   std::ostringstream os;
 
@@ -67,8 +59,7 @@ constexpr std::string create_message_path(
 
 void osc_service::OscService::add_message(
     OSCPP::Client::Packet &packet,
-    processing::MidiMessageProcessor::parameter_change_event &update) {
-  packet.openMessage(create_message_path(update).c_str(), 1)
-      .float32(update.value)
-      .closeMessage();
+    processing::MidiMessageProcessor::parameter_change_event &update,
+    const char *message_path) {
+  packet.openMessage(message_path, 1).float32(update.value).closeMessage();
 }
