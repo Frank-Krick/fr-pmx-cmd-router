@@ -46,7 +46,6 @@ void application::Application::on_process(void *user_data,
               << update.value << std::endl;
   }
 
-  std::cout << "Sending osc update" << std::endl;
   auto pw_buffer =
       utils::PipewireService::dequeue_buffer(this_pointer->updates_port);
 
@@ -54,40 +53,36 @@ void application::Application::on_process(void *user_data,
     return;
   }
 
-  pw_filter_queue_buffer(this_pointer->updates_port, pw_buffer.value());
-  /*
-  char osc_buffer[1000];
-  auto actual_size =
-      osc_service::OscService::build_message(updates, &osc_buffer, 1000);
-
-  if (actual_size > 0) {
-    std::cout << "Sending osc update" << std::endl;
-    auto pw_buffer =
-        utils::PipewireService::dequeue_buffer(this_pointer->updates_port);
-
-    if (!pw_buffer) {
-      return;
-    }
-
-    struct spa_buffer *spa_buffer;
-    spa_buffer = pw_buffer.value()->buffer;
-    if (spa_buffer->datas[0].data == NULL) {
-      std::cout << "Buffer has no data" << std::endl;
-      return;
-    }
-
-    auto data_ptr = spa_buffer->datas[0].data;
-    auto max_size = spa_buffer->datas[0].maxsize;
-    if (actual_size > max_size) {
-      std::cout << "Buffer size too small" << std::endl;
-      return;
-    }
-
-    memcpy(data_ptr, osc_buffer, actual_size);
-    spa_buffer->datas[0].chunk->size = actual_size;
-    pw_filter_queue_buffer(this_pointer->updates_port, pw_buffer.value());
+  struct spa_buffer *spa_buffer;
+  spa_buffer = pw_buffer.value()->buffer;
+  if (spa_buffer->datas[0].data == NULL) {
+    std::cout << "Buffer has no data" << std::endl;
+    return;
   }
-  */
+
+  auto spa_data = spa_buffer->datas[0];
+  spa_data.chunk->offset = 0;
+  spa_data.chunk->size = 0;
+  spa_data.chunk->stride = 1;
+  spa_data.chunk->flags = 0;
+
+  struct spa_pod_builder builder;
+  struct spa_pod_frame frame;
+  spa_pod_builder_init(&builder, spa_data.data, spa_data.maxsize);
+  spa_pod_builder_push_sequence(&builder, &frame, 0);
+  if (std::ranges::count_if(updates, [](auto &&p) {
+        return p.parameter != processing::none;
+      }) > 0) {
+    char osc_buffer[2000];
+    auto actual_size =
+        osc_service::OscService::build_message(updates, &osc_buffer, 1000);
+    spa_pod_builder_control(&builder, 0, SPA_CONTROL_OSC);
+    spa_pod_builder_bytes(&builder, pw_buffer.value(), actual_size);
+  }
+
+  spa_pod_builder_pop(&builder, &frame);
+  spa_data.chunk->size = builder.state.offset;
+  pw_filter_queue_buffer(this_pointer->updates_port, pw_buffer.value());
 }
 
 void application::Application::handle_filter_param_update(
@@ -222,8 +217,8 @@ application::Application::Application(int argc, char *argv[]) {
   updates_port = static_cast<struct processing::port *>(pw_filter_add_port(
       filter, PW_DIRECTION_OUTPUT, PW_FILTER_PORT_FLAG_MAP_BUFFERS,
       sizeof(struct processing::port),
-      pw_properties_new(PW_KEY_FORMAT_DSP, "Osc", PW_KEY_PORT_NAME, "updates",
-                        NULL),
+      pw_properties_new(PW_KEY_FORMAT_DSP, "8 bit raw midi", PW_KEY_PORT_NAME,
+                        "updates", NULL),
       NULL, 0));
 
   if (!updates_port) {
@@ -236,6 +231,30 @@ application::Application::Application(int argc, char *argv[]) {
   group_channel_port_processor = processing::GroupChannelsPortProcessor(
       group_channels_midi_routing_table, node_registry,
       group_to_node_id_mapping);
+
+  uint8_t buffer[1024];
+  struct spa_pod_builder builder;
+  struct spa_pod *params[1];
+  spa_pod_builder_init(&builder, buffer, sizeof(buffer));
+
+  params[0] = static_cast<struct spa_pod *>(spa_pod_builder_add_object(
+      &builder,
+      /* POD Object for the buffer parameter */
+      SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
+      /* Default 1 buffer, minimum of 1, max of 32 buffers.
+       * We can do with 1 buffer as we dequeue and queue in the same
+       * cycle.
+       */
+      SPA_PARAM_BUFFERS_buffers, SPA_POD_CHOICE_RANGE_Int(1, 1, 32),
+      /* MIDI buffers always have 1 data block */
+      SPA_PARAM_BUFFERS_blocks, SPA_POD_Int(1),
+      /* Buffer size: request default 4096 bytes, min 4096, no maximum */
+      SPA_PARAM_BUFFERS_size, SPA_POD_CHOICE_RANGE_Int(4096, 4096, INT32_MAX),
+      /* MIDI buffers have stride 1 */
+      SPA_PARAM_BUFFERS_stride, SPA_POD_Int(1)));
+
+  pw_filter_update_params(filter, updates_port, (const struct spa_pod **)params,
+                          SPA_N_ELEMENTS(params));
 }
 
 int application::Application::run() {

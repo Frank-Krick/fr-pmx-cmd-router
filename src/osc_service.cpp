@@ -1,5 +1,6 @@
 #include "osc_service/osc_service.h"
 #include "processing/midi_message_processor.h"
+#include "processing/parameters.h"
 
 #include <oscpp/client.hpp>
 #include <sstream>
@@ -47,6 +48,11 @@ add_device(std::ostringstream &os,
   }
 }
 
+constexpr void add_parameter(std::ostringstream &os,
+                             processing::parameter &parameter) {
+  os << '/' << parameter.name;
+}
+
 constexpr std::string create_message_path(
     processing::MidiMessageProcessor::parameter_change_event &update) {
   std::ostringstream os;
@@ -54,6 +60,7 @@ constexpr std::string create_message_path(
   add_channel_type(os, update);
   add_channel_number(os, update);
   add_device(os, update);
+  add_parameter(os, *update.parameter);
 
   return os.str();
 }
