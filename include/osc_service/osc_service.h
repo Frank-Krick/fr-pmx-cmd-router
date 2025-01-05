@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <ranges>
 
 namespace osc_service {
 
@@ -18,7 +19,9 @@ public:
     OSCPP::Client::Packet packet(buffer, max_size);
     packet.openBundle(0L);
 
-    for (auto &&update : updates) {
+    for (auto &&update : updates | std::ranges::views::filter([](auto &e) {
+                           return e.parameter != processing::none;
+                         })) {
       add_message(packet, update);
     }
 

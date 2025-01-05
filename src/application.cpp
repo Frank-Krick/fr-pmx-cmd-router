@@ -77,7 +77,7 @@ void application::Application::on_process(void *user_data,
     auto actual_size =
         osc_service::OscService::build_message(updates, &osc_buffer, 1000);
     spa_pod_builder_control(&builder, 0, SPA_CONTROL_OSC);
-    spa_pod_builder_bytes(&builder, pw_buffer.value(), actual_size);
+    spa_pod_builder_bytes(&builder, osc_buffer, actual_size);
   }
 
   spa_pod_builder_pop(&builder, &frame);
